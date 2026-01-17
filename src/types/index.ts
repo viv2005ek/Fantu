@@ -1,23 +1,51 @@
+// ==========================
+// USER
+// ==========================
 export interface User {
   uid: string;
   email: string;
 }
 
+// ==========================
+// BASIC ENUMS
+// ==========================
 export type AvatarVoiceGender = 'male' | 'female';
 export type Language = 'en' | 'hi';
 
+// ==========================
+// CONVERSATION SETTINGS
+// ==========================
 export interface ConversationSettings {
   description: string;
-  avatarImageUrl?: string;
+
+  /**
+   * Media used by Gooey for lip-sync.
+   * MUST be a public URL.
+   * Preferred: short MP4 / MOV
+   * Fallback: JPG / PNG
+   */
+  avatarMediaUrl?: string;
+
+  /**
+   * Static image used ONLY for UI preview
+   * (represents 0th-second frame)
+   */
+  avatarPreviewImageUrl?: string;
+
   personality: string;
   tone: 'Professional' | 'Friendly' | 'Mentor';
   responseLength: 'Short' | 'Normal' | 'Detailed';
+
   avatarVoiceGender: AvatarVoiceGender;
   language: Language;
+
   avatarId: string;
   selectedGeminiModel: string;
 }
 
+// ==========================
+// CONVERSATION
+// ==========================
 export interface Conversation {
   id: string;
   userId: string;
@@ -26,81 +54,191 @@ export interface Conversation {
   settings?: ConversationSettings;
 }
 
+// ==========================
+// MESSAGE
+// ==========================
 export interface Message {
   id?: string;
   conversationId: string;
   sender: 'user' | 'ai';
   text: string;
+
+  /**
+   * Final Gooey-generated talking video URL
+   */
   videoUrl?: string;
+
   createdAt: Date;
 }
 
-export interface AvatarSettings {
-  personality: string;
-  tone: 'Professional' | 'Friendly' | 'Mentor';
-  responseLength: 'Short' | 'Normal' | 'Detailed';
-  imageUrl?: string;
-}
-
+// ==========================
+// PREDEFINED AVATAR
+// ==========================
 export interface PredefinedAvatar {
   id: string;
   name: string;
-  imageUrl: string;
-  videoPreviewUrl?: string;
+
+  /**
+   * Video sent to Gooey for lip-sync
+   * (short, neutral, front-facing)
+   */
+  avatarMediaUrl: string;
+
+  /**
+   * Image shown in UI (settings, picker)
+   */
+  previewImageUrl: string;
+
   defaultGender: AvatarVoiceGender;
   defaultTone: 'Professional' | 'Friendly' | 'Mentor';
+  language?: Language;
   defaultPersonality: string;
+  defaultDescription?: string;
+
   type: 'default' | 'celebrity' | 'professional';
 }
 
+// ==========================
+// PREDEFINED AVATARS (VIDEO-FIRST)
+// ==========================
 export const PREDEFINED_AVATARS: PredefinedAvatar[] = [
-  {
+  // ==========================
+  // DEFAULT
+  // ==========================
+   {
     id: 'default-ai',
-    name: 'Default AI Avatar',
-    imageUrl: 'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg?auto=compress&cs=tinysrgb&w=800',
+    name: 'General',
+    avatarMediaUrl:
+      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
+    previewImageUrl:
+      'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg',
     type: 'default',
+    defaultGender: 'male',
+    defaultTone: 'Professional',
+    defaultPersonality:  `A helpful and knowledgeable AI assistant
+`,
+defaultDescription: `A general purpose AI assistant
+`
+
+  },
+  {
+    id: 'Doctor-ai',
+    name: 'Doctor',
+    avatarMediaUrl:
+      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
+    previewImageUrl:
+      'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg',
+    type: 'professional',
     defaultGender: 'female',
     defaultTone: 'Professional',
-    defaultPersonality: 'A helpful and knowledgeable AI assistant'
+    defaultPersonality:  `Calm, composed, and reassuring. 
+Explains medical concepts clearly using simple language.
+Avoids panic, exaggeration, or absolute claims.
+Frequently encourages consulting qualified professionals when appropriate.
+Speaks with confidence but never arrogance.
+`,
+defaultDescription: `A medical-information assistant used to explain health concepts, symptoms, and general wellness topics. 
+This agent provides educational guidance only and does not perform diagnosis or prescribe treatment.
+Designed to sound calm, trustworthy, and reassuring.
+`
+
   },
+
+  // ==========================
+  // PROFESSIONALS
+  // ==========================
+ 
+
   {
-    id: 'einstein',
-    name: 'Albert Einstein',
-    imageUrl: 'https://images.pexels.com/photos/3785079/pexels-photo-3785079.jpeg?auto=compress&cs=tinysrgb&w=800',
-    type: 'celebrity',
-    defaultGender: 'male',
-    defaultTone: 'Mentor',
-    defaultPersonality: 'A brilliant scientist who explains complex concepts with curiosity and wisdom'
-  },
-  {
-    id: 'mr-bean',
-    name: 'Mr. Bean',
-    imageUrl: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=800',
-    type: 'celebrity',
-    defaultGender: 'male',
-    defaultTone: 'Friendly',
-    defaultPersonality: 'A playful and humorous character who makes conversations light and entertaining'
-  },
-  {
-    id: 'professional-mentor',
-    name: 'Professional Mentor',
-    imageUrl: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=800',
+    id: 'college-mentor',
+    name: 'Mentor',
+    avatarMediaUrl:
+      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
+    previewImageUrl:
+      'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg',
     type: 'professional',
     defaultGender: 'male',
     defaultTone: 'Mentor',
-    defaultPersonality: 'An experienced mentor who provides thoughtful guidance and advice'
+    defaultPersonality:
+      `Direct, honest, and pragmatic.
+Gives structured advice with clear reasoning.
+Challenges weak assumptions politely but firmly.
+Encourages long-term thinking, discipline, and skill-building.
+Avoids motivational clichés and focuses on actionable guidance.
+`,
+defaultDescription:`A career and life mentor focused on guidance for students, professionals, and early-stage decision makers.
+Used for career advice, learning paths, productivity, and personal growth discussions.
+`
   },
+
+  // ==========================
+  // STUDENTS / YOUTH
+  // ==========================
+
+
+
+  // ==========================
+  // COMEDIANS / FUN
+  // ==========================
+ 
   {
-    id: 'friendly-assistant',
-    name: 'Friendly Assistant',
-    imageUrl: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=800',
-    type: 'professional',
-    defaultGender: 'female',
+    id: 'funny-friend',
+    name: 'Funny Friend',
+    avatarMediaUrl:
+      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
+    previewImageUrl:
+      'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg',
+    type: 'default',
+    defaultGender: 'male',
     defaultTone: 'Friendly',
-    defaultPersonality: 'A warm and approachable assistant who makes everyone feel comfortable'
-  }
+    defaultPersonality:
+      `Playful, witty, and humorous.
+Uses light jokes, casual language, and friendly teasing when appropriate.
+Keeps responses short and energetic.
+Avoids sensitive topics and never gives serious advice.
+Feels like chatting with a close friend.
+`,
+      language: 'hi',
+       defaultDescription:
+    `A casual, friendly conversational agent designed to make interactions light, engaging, and enjoyable.
+Used for informal chats, stress relief, and relaxed conversations.
+Not intended for serious professional or medical guidance.
+
+`,
+  },
+
+  // ==========================
+  // CELEBRITY STYLE
+  // ==========================
+ {
+  id: 'creator',
+  name: 'Creator',
+  defaultDescription:
+    `I am Vivek The creator of the product speaking directly to users.
+Used for onboarding, feature explanations, announcements, and system-level guidance.
+Represents the product’s vision and technical understanding.
+`,
+  avatarMediaUrl: 'YOUR_VIDEO_URL',
+  previewImageUrl: 'YOUR_IMAGE_URL',
+  type: 'professional',
+  defaultGender: 'male',
+  defaultTone: 'Mentor',
+  defaultPersonality:
+ `Clear, confident, and no-nonsense.
+Speaks honestly and directly without hype or exaggeration.
+Technically competent and precise.
+Explains decisions, limitations, and trade-offs transparently.
+Respects the user’s intelligence and avoids oversimplification.
+`
+}
+
+
 ];
 
+
+// ==========================
+// GEMINI MODELS
+// ==========================
 export const GEMINI_MODELS = [
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', locked: false },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', locked: false },
@@ -111,6 +249,9 @@ export const GEMINI_MODELS = [
   { id: 'gemini-ultra', name: 'Gemini Ultra', locked: true }
 ];
 
+// ==========================
+// DEFAULT CONVERSATION SETTINGS
+// ==========================
 export const DEFAULT_CONVERSATION_SETTINGS: ConversationSettings = {
   description: 'A general purpose AI assistant',
   personality: 'A helpful and knowledgeable AI assistant',
@@ -119,5 +260,10 @@ export const DEFAULT_CONVERSATION_SETTINGS: ConversationSettings = {
   avatarVoiceGender: 'female',
   language: 'en',
   avatarId: 'default-ai',
-  selectedGeminiModel: 'gemini-2.5-flash'
+  selectedGeminiModel: 'gemini-2.5-flash',
+
+  avatarMediaUrl:
+    'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
+  avatarPreviewImageUrl:
+    'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg'
 };

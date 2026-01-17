@@ -221,9 +221,10 @@ export default function ChatView({ conversationId }: ChatViewProps) {
    const gooeyResponse = await generateAvatarVideo({
   text: responseText,
   language: currentSettings.language,
-  avatarUrl: currentSettings.avatarImageUrl,
+  avatarUrl: currentSettings.avatarMediaUrl,
   gender: currentSettings.avatarVoiceGender
 });
+
 
 
       if (currentConversationRef.current !== targetConversationId) {
@@ -306,14 +307,29 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     }
   }
 
-  async function handleSettingsChange(newSettings: ConversationSettings) {
-    setSettings(newSettings);
-    try {
-      await updateConversationSettings(conversationId, newSettings);
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+function sanitizeSettings(settings: ConversationSettings): ConversationSettings {
+  const cleaned = { ...settings };
+
+  Object.keys(cleaned).forEach((key) => {
+    if ((cleaned as any)[key] === undefined) {
+      delete (cleaned as any)[key];
     }
+  });
+
+  return cleaned;
+}
+
+async function handleSettingsChange(newSettings: ConversationSettings) {
+  const sanitized = sanitizeSettings(newSettings);
+  setSettings(sanitized);
+
+  try {
+    await updateConversationSettings(conversationId, sanitized);
+  } catch (error) {
+    console.error('Failed to save settings:', error);
   }
+}
+
 
   const isBusy = videoState === 'thinking' || videoState === 'speaking';
 
@@ -341,12 +357,13 @@ export default function ChatView({ conversationId }: ChatViewProps) {
         <div className="flex-shrink-0 p-6 pb-4">
           <div className="max-w-2xl mx-auto">
             <VideoPlayer
-              state={videoState}
-              avatarImageUrl={settings.avatarImageUrl}
-              speakingVideoUrl={currentVideoUrl}
-              caption={currentCaption}
-              onVideoEnded={handleVideoEnded}
-            />
+  state={videoState}
+  avatarImageUrl={settings.avatarPreviewImageUrl}
+  speakingVideoUrl={currentVideoUrl}
+  caption={currentCaption}
+  onVideoEnded={handleVideoEnded}
+/>
+
           </div>
         </div>
 

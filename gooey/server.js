@@ -35,7 +35,7 @@ app.post('/api/generate-avatar-video', async (req, res) => {
   console.log('Received request to /api/generate-avatar-video');
 
   try {
-const { text, language = 'en', gender = 'male', avatarUrl } = req.body;
+const { text, language = 'en', gender = 'male', avatarMediaUrl  } = req.body;
 
     if (!text) {
       return res.status(400).json({
@@ -82,9 +82,9 @@ tts_provider: 'GOOGLE_TTS',
       face_padding_bottom: 16,
       face_padding_left: 12,
       face_padding_right: 6,
-
+      input_face: avatarUrl
       // MUST be a public HTTPS image URL
-input_face: avatarUrl
+
 
     };
 
