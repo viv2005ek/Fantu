@@ -127,7 +127,7 @@ defaultDescription: `A general purpose AI assistant
     avatarMediaUrl:
       'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
     previewImageUrl:
-      'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg',
+      'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/doctor.png',
     type: 'professional',
     defaultGender: 'female',
     defaultTone: 'Professional',
@@ -218,8 +218,8 @@ Not intended for serious professional or medical guidance.
 Used for onboarding, feature explanations, announcements, and system-level guidance.
 Represents the product’s vision and technical understanding.
 `,
-  avatarMediaUrl: 'YOUR_VIDEO_URL',
-  previewImageUrl: 'YOUR_IMAGE_URL',
+avatarMediaUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/movs/CreatorMov.mov',
+  previewImageUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/CreatorPhoto.jpeg',
   type: 'professional',
   defaultGender: 'male',
   defaultTone: 'Mentor',
