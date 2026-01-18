@@ -16,11 +16,7 @@ const DEFAULT_MODEL = 'gemini-2.5-flash';
 let modelsListed = false;
 
 const mockResponses = [
-  "That's a great question! Let me break it down for you in a way that's easy to understand.",
-  "I appreciate you asking about this topic. Here's what I think you should know.",
-  "Based on my understanding, here's a comprehensive explanation of your query.",
-  "Let me walk you through this step by step so it's crystal clear.",
-  "This is an interesting point you've raised. Here's my perspective on it.",
+  "That is a thoughtful question, and I want to explain it clearly. First, let us understand the core idea behind what you are asking. This concept is important because it affects how decisions are made in real situations. When you look at it step by step, the reasoning becomes much easier to follow. I will also connect this to a practical example so it feels more concrete. By the end, you should have a clear mental model of what is happening and why it matters."
 ];
 
 const shortResponses = [
@@ -42,9 +38,14 @@ function buildSystemPrompt(settings: ConversationSettings, conversationHistory: 
   };
 
   const lengthInstructions = {
-    Short: 'Keep your response brief and to the point. Use 1-2 sentences maximum.',
-    Normal: 'Provide a balanced response with enough detail to be helpful but not overwhelming. Use 2-4 sentences.',
-    Detailed: 'Provide a thorough, comprehensive response with examples and explanations. Be detailed but organized.'
+    Short:
+      'Give a concise response in one short paragraph. Do not elaborate unless absolutely necessary.',
+
+    Normal:
+      'Give a clear, natural response suitable for a live conversation. Explain ideas fully, using multiple sentences where helpful. Do not artificially limit length.',
+
+    Detailed:
+      'Give an in-depth response as if teaching or explaining to someone seriously interested. Use paragraphs, examples, and clear reasoning.'
   };
 
   const languageNames = {
@@ -86,11 +87,17 @@ Respond ONLY in ${selectedLanguage}. All your responses must be in ${selectedLan
 ${conversationContext}
 === MANDATORY INSTRUCTIONS ===
 - You are speaking in a LIVE video call - respond naturally and conversationally
+You must respond with at least 6 to 8 full spoken sentences.
+Do not conclude early.
+Do not summarize.
+Continue speaking until the explanation feels complete.
 - Sound natural as if you are actually talking to someone face-to-face
+- If the answer feels too short, expand naturally with clarification or examples
 - Match the selected tone (${settings.tone}) and response depth (${settings.responseLength})
 - Respond ONLY in ${selectedLanguage} - do not mix languages
 - Do NOT mention that you are an AI model or assistant
-- Do NOT use markdown formatting, bullet points, or special characters
+Do not use markdown symbols in the final output.
+You may internally structure your response into clear spoken segments.
 - Do NOT use asterisks, bold, or italic markers
 - Speak in complete sentences suitable for text-to-speech
 - Be engaging, warm, and personable`;
@@ -149,46 +156,53 @@ async function listAvailableModels(apiKey: string): Promise<void> {
   }
 }
 
-async function tryGeminiModels(apiKey: string, body: any, selectedModel: string): Promise<string> {
-  console.log('🔄 Trying Gemini models with fallback...');
+async function tryGeminiModels(
+  apiKey: string,
+  body: any,
+  selectedModel: string
+): Promise<string> {
+  const modelsToTry = [
+    selectedModel,
+    ...GEMINI_MODELS.filter(m => m !== selectedModel)
+  ];
 
-  const availableModels = GEMINI_MODELS.filter(m => m.id === selectedModel || !m.id.includes('gemini-pro'));
-  const modelsToTry = [selectedModel, ...availableModels];
-  const uniqueModels = [...new Set(modelsToTry)];
-
-  for (const model of uniqueModels) {
+  for (const model of modelsToTry) {
     try {
-      console.log(`🔧 Trying model: ${model}`);
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!response.ok) continue;
 
-        if (text) {
-          console.log(`✅ Success with model: ${model}`);
-          return text.trim();
-        } else {
-          console.log(`❌ No text in response for model: ${model}`);
-        }
-      } else {
-        const errorText = await response.text();
-        console.log(`❌ Model ${model} failed: ${response.status}`);
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (text && text.length > 200) {
+        return text.trim();
       }
-    } catch (error) {
-      console.error(`❌ Error with model ${model}:`, error);
-    }
+    } catch {}
   }
 
   throw new Error('All Gemini models failed');
+}
+
+// Helper function to improve Hindi response formatting
+function ensureHindiFormatting(text: string): string {
+  let formatted = text.trim();
+  
+  // Ensure the response ends with proper punctuation
+  if (!/[।?!]$/.test(formatted)) {
+    formatted += '।';
+  }
+  
+  // Replace multiple spaces with single spaces
+  formatted = formatted.replace(/\s+/g, ' ');
+  
+  return formatted;
 }
 
 export async function generateAIResponse(
@@ -198,14 +212,36 @@ export async function generateAIResponse(
 ): Promise<string> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-  if (!apiKey) {
-    console.warn('Gemini key missing, using mock response');
-    return getMockResponse(settings, userMessage);
+ if (!apiKey) {
+    console.warn('Gemini key missing, returning mock response');
+    
+    // Generate a long paragraph based on settings
+    let longResponse = '';
+    
+    if (settings.language === 'hi') {
+      // Hindi long paragraph
+      longResponse = `यह एक विचारशील प्रश्न है, और मैं इसे स्पष्ट रूप से समझाना चाहता हूँ। सबसे पहले, हमें यह समझने की आवश्यकता है कि आप किस बारे में पूछ रहे हैं। यह अवधारणा महत्वपूर्ण है क्योंकि यह वास्तविक स्थितियों में निर्णय लेने को प्रभावित करती है। जब आप इसे चरण दर चरण देखते हैं, तो तर्क समझना बहुत आसान हो जाता है। मैं इसे एक व्यावहारिक उदाहरण से भी जोड़ूंगा ताकि यह और अधिक मूर्त लगे। अंत तक, आपके पास होने वाली घटनाओं और उनके महत्व की स्पष्ट मानसिक तस्वीर होनी चाहिए। अब, मैं और विस्तार से समझाता हूँ। यहाँ मूल सिद्धांत विभिन्न घटकों के बीच संबंध को समझने पर आधारित है। प्रत्येक तत्व एक विशिष्ट भूमिका निभाता है, और जब वे संयुक्त होते हैं, तो वे एक प्रभावी ढंग से कार्य करने वाली प्रणाली बनाते हैं। यह पहचानना महत्वपूर्ण है कि ये टुकड़े एक दूसरे के साथ कैसे संवाद करते हैं। इसके अतिरिक्त, हमें उस संदर्भ पर विचार करना चाहिए जिसमें यह संचालित होता है, क्योंकि बाहरी कारक परिणामों को महत्वपूर्ण रूप से प्रभावित कर सकते हैं। याद रखें कि यह केवल सैद्धांतिक नहीं है; इसके वास्तविक दुनिया के अनुप्रयोग हैं जिनका आप दैनिक रूप से सामना कर सकते हैं। इसलिए, इन बारीकियों को समझने के लिए समय निकालना आपको व्यावहारिक परिदृश्यों में अच्छी सेवा देगा। अंततः, लक्ष्य एक व्यापक समझ बनाना है जिसे आप लचीले ढंग से लागू कर सकें।`;
+    } else {
+      // English long paragraph
+      longResponse = `That is a thoughtful question, and I want to explain it clearly. First, let us understand the core idea behind what you are asking. This concept is important because it affects how decisions are made in real situations. When you look at it step by step, the reasoning becomes much easier to follow. I will also connect this to a practical example so it feels more concrete. By the end, you should have a clear mental model of what is happening and why it matters. Now, let me elaborate further. The fundamental principle here revolves around understanding the relationship between different components. Each element plays a specific role, and when combined, they create a system that functions effectively. It's crucial to recognize how these pieces interact with one another. Additionally, we must consider the context in which this operates, as external factors can significantly influence outcomes. Remember that this is not just theoretical; it has real-world applications that you might encounter daily. Therefore, taking the time to grasp these nuances will serve you well in practical scenarios. Ultimately, the goal is to build a comprehensive understanding that you can apply flexibly.`;
+    }
+    
+    // Add tone-based prefix if needed
+    if (settings.tone === 'Friendly') {
+      longResponse = `Hey there! ${longResponse}`;
+    } else if (settings.tone === 'Mentor') {
+      longResponse = `Great question. ${longResponse}`;
+    }
+    
+    return longResponse;
   }
 
   await listAvailableModels(apiKey);
 
   try {
+    // Optimize generation config for Hindi
+    const isHindi = settings.language === 'hi';
+    
     const requestBody = {
       contents: [
         {
@@ -213,11 +249,23 @@ export async function generateAIResponse(
         }
       ],
       generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: settings.responseLength === 'Short' ? 100 :
-                        settings.responseLength === 'Detailed' ? 500 : 250
+        // Temperature: Lower for Hindi (more focused), higher for English (more creative)
+        temperature: isHindi ? 0.4 : 0.7,
+        
+        // topK: Lower for Hindi (more predictable), higher for English (more diverse)
+        topK: isHindi ? 15 : 40,
+        
+        // topP: Slightly lower for Hindi to reduce randomness
+        topP: isHindi ? 0.45 : 0.95,
+        
+        // Double max tokens for Hindi since Hindi text is more verbose
+        maxOutputTokens: isHindi
+          ? (settings.responseLength === 'Short' ? 700 :
+             settings.responseLength === 'Detailed' ? 1500 :
+             1000)
+          : (settings.responseLength === 'Short' ? 500 :
+             settings.responseLength === 'Detailed' ? 1300 :
+             800)
       }
     };
 
@@ -225,7 +273,8 @@ export async function generateAIResponse(
 
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-      console.log(`🎯 Trying selected model: ${selectedModel}`);
+      console.log(`🎯 Trying selected model: ${selectedModel} (${isHindi ? 'Hindi' : 'English'})`);
+      console.log(`📝 Generation config:`, requestBody.generationConfig);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -256,6 +305,13 @@ export async function generateAIResponse(
       }
 
       console.log(`✅ Success with selected model: ${selectedModel}`);
+      console.log(`📏 Response length: ${text.length} characters`);
+      
+      // For Hindi responses, ensure proper sentence endings
+      if (isHindi) {
+        return ensureHindiFormatting(text.trim());
+      }
+      
       return text.trim();
     } catch (error) {
       console.error('Selected model failed, trying fallback models...');

@@ -9,6 +9,7 @@ interface VideoPlayerProps {
   state: VideoState;
   avatarImageUrl?: string;
   speakingVideoUrl?: string | null;
+  speakingVideoUrls?: string[];
   caption?: string;
   onVideoEnded?: () => void;
   showFullTranscript?: boolean;
@@ -23,19 +24,94 @@ export default function VideoPlayer({
   state,
   avatarImageUrl,
   speakingVideoUrl,
+  speakingVideoUrls = [],
   caption,
   onVideoEnded,
   showFullTranscript = false
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const mainVideoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [captionLines, setCaptionLines] = useState<string[]>([]);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [videosPreloaded, setVideosPreloaded] = useState<boolean[]>([]);
 
   const displayAvatar = avatarImageUrl || DEFAULT_AVATAR_URL;
-  const hasGooeyVideo = speakingVideoUrl && state === 'speaking' && !videoError;
+  
+  const videoUrls = speakingVideoUrls.length > 0 ? speakingVideoUrls : 
+                   (speakingVideoUrl ? [speakingVideoUrl] : []);
+  
+  const hasGooeyVideo = videoUrls.length > 0 && state === 'speaking' && !videoError;
+  const currentVideoUrl = videoUrls[currentVideoIndex] || null;
+
+  // Initialize preload status array
+  useEffect(() => {
+    if (videoUrls.length > 0) {
+      setVideosPreloaded(new Array(videoUrls.length).fill(false));
+    }
+  }, [videoUrls.length]);
+
+  // Preload all videos sequentially
+  useEffect(() => {
+    if (videoUrls.length > 0 && state === 'speaking') {
+      const preloadPromises = videoUrls.map((url, index) => {
+        return new Promise<void>((resolve) => {
+          const video = document.createElement('video');
+          video.muted = true;
+          video.preload = 'auto';
+          video.src = url;
+          
+          // Try to load in the background
+          video.load();
+          
+          const handleCanPlay = () => {
+            setVideosPreloaded(prev => {
+              const newArr = [...prev];
+              newArr[index] = true;
+              return newArr;
+            });
+            video.removeEventListener('canplay', handleCanPlay);
+            video.removeEventListener('error', handleError);
+            resolve();
+          };
+          
+          const handleError = () => {
+            console.warn(`Failed to preload video ${index}: ${url}`);
+            setVideosPreloaded(prev => {
+              const newArr = [...prev];
+              newArr[index] = true; // Mark as "loaded" even if error to continue
+              return newArr;
+            });
+            video.removeEventListener('canplay', handleCanPlay);
+            video.removeEventListener('error', handleError);
+            resolve();
+          };
+          
+          video.addEventListener('canplay', handleCanPlay, { once: true });
+          video.addEventListener('error', handleError, { once: true });
+          
+          // Timeout after 3 seconds
+          setTimeout(() => {
+            video.removeEventListener('canplay', handleCanPlay);
+            video.removeEventListener('error', handleError);
+            setVideosPreloaded(prev => {
+              const newArr = [...prev];
+              newArr[index] = true;
+              return newArr;
+            });
+            resolve();
+          }, 3000);
+        });
+      });
+
+      // Cleanup function
+      return () => {
+        // Cleanup handled in individual promises
+      };
+    }
+  }, [videoUrls, state]);
 
   useEffect(() => {
     if (caption && state === 'speaking') {
@@ -45,14 +121,12 @@ export default function VideoPlayer({
 
       if (lines.length > 1) {
         const interval = setInterval(() => {
-          setCurrentLineIndex((prev) => {
-            if (prev < lines.length - 1) {
-              return prev + 1;
-            }
+          setCurrentLineIndex(prev => {
+            if (prev < lines.length - 1) return prev + 1;
             clearInterval(interval);
             return prev;
           });
-        }, 3000);
+        }, Math.max(2500, lines[currentLineIndex].split(' ').length * 400));
 
         return () => clearInterval(interval);
       }
@@ -68,43 +142,88 @@ export default function VideoPlayer({
     }
   }, [state]);
 
+  // Reset when state changes
   useEffect(() => {
-    if (speakingVideoUrl && videoRef.current) {
+    if (state !== 'speaking') {
+      setCurrentVideoIndex(0);
       setVideoLoaded(false);
       setVideoError(false);
-      videoRef.current.src = speakingVideoUrl;
-      videoRef.current.load();
-    }
-  }, [speakingVideoUrl]);
-
-  useEffect(() => {
-    if (state === 'speaking' && videoLoaded && videoRef.current && !videoError) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch((err) => {
-        console.error('Failed to play video:', err);
-        setVideoError(true);
-      });
-    }
-  }, [state, videoLoaded, videoError]);
-
-  useEffect(() => {
-    if (state !== 'speaking' && videoRef.current) {
-      videoRef.current.pause();
+      setVideosPreloaded([]);
     }
   }, [state]);
 
-  function handleVideoLoaded() {
-    setVideoLoaded(true);
-  }
+  // Load and play current video
+  useEffect(() => {
+    if (currentVideoUrl && mainVideoRef.current && state === 'speaking') {
+      // Reset video state
+      setVideoLoaded(false);
+      setVideoError(false);
+      
+      // Set source and load
+      mainVideoRef.current.src = currentVideoUrl;
+      mainVideoRef.current.load();
+      
+      // Check if current video is preloaded
+      const isCurrentPreloaded = videosPreloaded[currentVideoIndex];
+      
+      // Set up event listeners
+      const handleCanPlay = () => {
+        setVideoLoaded(true);
+        // Play immediately when ready
+        mainVideoRef.current?.play().catch(err => {
+          console.error('Failed to play video:', err);
+          setVideoError(true);
+        });
+      };
+      
+      const handleError = () => {
+        console.error('Video failed to load:', currentVideoUrl);
+        setVideoError(true);
+        playNextVideoOrEnd();
+      };
+      
+      mainVideoRef.current.addEventListener('canplay', handleCanPlay, { once: true });
+      mainVideoRef.current.addEventListener('error', handleError, { once: true });
+      
+      // If preloaded, try to play immediately
+      if (isCurrentPreloaded && mainVideoRef.current.readyState >= 3) {
+        setTimeout(() => {
+          if (!videoLoaded && !videoError) {
+            mainVideoRef.current?.play().catch(console.error);
+          }
+        }, 100);
+      }
+      
+      // Cleanup
+      return () => {
+        if (mainVideoRef.current) {
+          mainVideoRef.current.removeEventListener('canplay', handleCanPlay);
+          mainVideoRef.current.removeEventListener('error', handleError);
+          mainVideoRef.current.pause();
+        }
+      };
+    }
+  }, [currentVideoUrl, currentVideoIndex, state, videosPreloaded]);
 
-  function handleVideoError() {
-    console.error('Video failed to load');
-    setVideoError(true);
-  }
-
+  // Handle video ended
   function handleVideoEnded() {
-    onVideoEnded?.();
+    playNextVideoOrEnd();
   }
+
+  function playNextVideoOrEnd() {
+    if (currentVideoIndex < videoUrls.length - 1) {
+      // Move to next video
+      setCurrentVideoIndex(prev => prev + 1);
+    } else {
+      // All videos played, keep last video visible
+      setTimeout(() => {
+        onVideoEnded?.();
+      }, 700); // Show last video for 700ms before ending
+    }
+  }
+
+  // Track all videos preloaded
+  const allVideosPreloaded = videosPreloaded.length > 0 && videosPreloaded.every(Boolean);
 
   function getStatusIndicator() {
     switch (state) {
@@ -142,14 +261,36 @@ export default function VideoPlayer({
     <div className="relative w-full" ref={containerRef}>
       <div className="relative aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden shadow-2xl">
         {hasGooeyVideo ? (
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
-            playsInline
-            onCanPlayThrough={handleVideoLoaded}
-            onError={handleVideoError}
-            onEnded={handleVideoEnded}
-          />
+          <>
+            {/* Main video player */}
+            <video
+              ref={mainVideoRef}
+              className="absolute inset-0 w-full h-full object-cover"
+              playsInline
+              muted={false}
+              onEnded={handleVideoEnded}
+              key={currentVideoIndex} // Force re-render when video changes
+            />
+            
+            {/* Loading indicator while videos load */}
+            {!allVideosPreloaded && videoUrls.length > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  <p className="text-sm text-white/80">
+                    Loading videos... ({videosPreloaded.filter(Boolean).length}/{videoUrls.length})
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Buffering indicator */}
+            {videoUrls.length > 0 && !videoLoaded && allVideosPreloaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              </div>
+            )}
+          </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             {displayAvatar ? (

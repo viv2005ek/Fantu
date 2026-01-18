@@ -12,6 +12,8 @@ export interface GooeyVideoRequest {
 export interface GooeyVideoResponse {
   success: boolean;
   videoUrl?: string;
+  videoUrls?: string[];
+  totalChunks?: number;
   error?: string;
   fallback?: boolean;
 }
@@ -25,13 +27,12 @@ export async function generateAvatarVideo(request: GooeyVideoRequest): Promise<G
       headers: {
         'Content-Type': 'application/json',
       },
-     body: JSON.stringify({
-  text: request.text,
-  language: request.language,
-  avatarUrl: request.avatarUrl,
-  gender: request.gender
-})
-
+      body: JSON.stringify({
+        text: request.text,
+        language: request.language,
+        avatarUrl: request.avatarUrl,
+        gender: request.gender
+      })
     });
 
     const data = await response.json();
@@ -45,9 +46,12 @@ export async function generateAvatarVideo(request: GooeyVideoRequest): Promise<G
       };
     }
 
+    // Return both formats for compatibility
     return {
       success: true,
-      videoUrl: data.videoUrl
+      videoUrl: data.videoUrl, // Single video (backward compatibility)
+      videoUrls: data.videoUrls, // Array of video chunks
+      totalChunks: data.totalChunks
     };
   } catch (error) {
     console.error('Failed to call Gooey server:', error);

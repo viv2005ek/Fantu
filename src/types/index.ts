@@ -240,14 +240,43 @@ Respects the user’s intelligence and avoids oversimplification.
 // GEMINI MODELS
 // ==========================
 export const GEMINI_MODELS = [
+  // ==========================
+  // GEMINI (AVAILABLE)
+  // ==========================
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', locked: false },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', locked: false },
   { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Experimental', locked: false },
   { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', locked: false },
   { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', locked: false },
+
+  // ==========================
+  // GEMINI (LOCKED)
+  // ==========================
   { id: 'gemini-pro', name: 'Gemini Pro', locked: true },
-  { id: 'gemini-ultra', name: 'Gemini Ultra', locked: true }
+  { id: 'gemini-ultra', name: 'Gemini Ultra', locked: true },
+
+  // ==========================
+  // CHATGPT (UPCOMING)
+  // ==========================
+  { id: 'gpt-4.1', name: 'ChatGPT GPT-4.1 (Upcoming)', locked: true },
+  { id: 'gpt-4o', name: 'ChatGPT GPT-4o (Multimodal)', locked: true },
+  { id: 'gpt-4o-mini', name: 'ChatGPT GPT-4o Mini', locked: true },
+  { id: 'gpt-3.5-turbo', name: 'ChatGPT GPT-3.5 Turbo', locked: true },
+
+  // ==========================
+  // GROK (UPCOMING)
+  // ==========================
+  { id: 'grok-1', name: 'Grok-1 (xAI)', locked: true },
+  { id: 'grok-1.5', name: 'Grok-1.5 (Advanced Reasoning)', locked: true },
+
+  // ==========================
+  // PERPLEXITY (UPCOMING)
+  // ==========================
+  { id: 'pplx-sonar-small', name: 'Perplexity Sonar Small', locked: true },
+  { id: 'pplx-sonar-large', name: 'Perplexity Sonar Large', locked: true },
+  { id: 'pplx-online', name: 'Perplexity Online (Search-Augmented)', locked: true }
 ];
+
 
 // ==========================
 // DEFAULT CONVERSATION SETTINGS

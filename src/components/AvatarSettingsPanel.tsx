@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Check, Lock } from 'lucide-react';
+  import { ChevronDown } from 'lucide-react';
 import {
   ConversationSettings,
   AvatarVoiceGender,
@@ -24,6 +25,7 @@ export default function AvatarSettingsPanel({
   const [mediaUrl, setMediaUrl] = useState(
   settings.avatarMediaUrl ?? ''
 );
+
 
 function handleAvatarSelect(avatarId: string) {
   const avatar = PREDEFINED_AVATARS.find(a => a.id === avatarId);
@@ -74,6 +76,26 @@ function handleAvatarSelect(avatarId: string) {
     onSettingsChange({ ...settings, selectedGeminiModel: modelId });
   }
 
+const [open, setOpen] = useState(false);
+const dropdownRef = useRef<HTMLDivElement>(null);
+useEffect(() => {
+  function handleClickOutside(e: MouseEvent) {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(e.target as Node)
+    ) {
+      setOpen(false);
+    }
+  }
+
+  if (open) {
+    document.addEventListener('mousedown', handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [open]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -177,26 +199,86 @@ function handleAvatarSelect(avatarId: string) {
           </div>
 
           {/* GEMINI MODEL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Gemini Model
-            </label>
-            <select
-              value={settings.selectedGeminiModel}
-              onChange={(e) => handleModelChange(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-            >
-              {GEMINI_MODELS.map(model => (
-                <option
-                  key={model.id}
-                  value={model.id}
-                  disabled={model.locked}
-                >
-                  {model.name} {model.locked ? '(Locked)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+       
+
+<div className="relative" ref={dropdownRef}>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    AI Model
+  </label>
+
+  {/* Trigger */}
+  <button
+    type="button"
+    onClick={() => setOpen(o => !o)}
+    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm hover:border-gray-400 transition"
+  >
+    <span>
+      {GEMINI_MODELS.find(m => m.id === settings.selectedGeminiModel)?.name}
+    </span>
+    <ChevronDown
+      className={`w-4 h-4 text-gray-500 transition-transform ${
+        open ? 'rotate-180' : ''
+      }`}
+    />
+  </button>
+
+  {/* Dropdown */}
+  {open && (
+    <div
+      className="
+        absolute z-50 mt-2 w-full bg-white
+        border border-gray-200 rounded-xl shadow-lg
+        max-h-64 overflow-y-auto
+      "
+    >
+      {/* AVAILABLE */}
+      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50 sticky top-0">
+        Available
+      </div>
+
+      {GEMINI_MODELS.filter(m => !m.locked).map(model => (
+        <button
+          key={model.id}
+          onClick={() => {
+            handleModelChange(model.id);
+            setOpen(false);
+          }}
+          className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between transition ${
+            settings.selectedGeminiModel === model.id
+              ? 'bg-gray-900 text-white'
+              : 'hover:bg-gray-100'
+          }`}
+        >
+          <span>{model.name}</span>
+          {settings.selectedGeminiModel === model.id && (
+            <Check className="w-4 h-4" />
+          )}
+        </button>
+      ))}
+
+      {/* UPCOMING */}
+      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50 border-t sticky top-[2.25rem]">
+        Upcoming
+      </div>
+
+      {GEMINI_MODELS.filter(m => m.locked).map(model => (
+        <div
+          key={model.id}
+          className="px-4 py-3 text-sm text-gray-400 flex items-center justify-between cursor-not-allowed"
+        >
+          <span>{model.name}</span>
+          <Lock className="w-4 h-4" />
+        </div>
+      ))}
+    </div>
+  )}
+
+  <p className="mt-2 text-xs text-gray-500">
+    Model selection applies to this conversation only.
+  </p>
+</div>
+
+
 
           {/* VOICE GENDER */}
           <div>

@@ -1,9 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Mic, MicOff, Settings } from 'lucide-react';
-import { Message, ConversationSettings, DEFAULT_CONVERSATION_SETTINGS } from '../types';
+import { 
+  Message, 
+  ConversationSettings, 
+  DEFAULT_CONVERSATION_SETTINGS 
+} from '../types';
 import { subscribeToMessages, addMessage, subscribeToConversation, updateConversationSettings } from '../services/firestore';
 import { generateAIResponse } from '../services/mockAI';
-import { generateAvatarVideo } from '../services/gooey';
+import { generateAvatarVideo, GooeyVideoResponse } from '../services/gooey'; // Import GooeyVideoResponse from gooey.ts
 import { speakText, stopSpeaking } from '../services/tts';
 import AvatarSettingsPanel from './AvatarSettingsPanel';
 import VideoPlayer, { VideoState } from './VideoPlayer';
@@ -66,6 +71,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<ConversationSettings>(DEFAULT_CONVERSATION_SETTINGS);
   const [transcriptMessages, setTranscriptMessages] = useState<Message[]>([]);
+  const [gooeyResponse, setGooeyResponse] = useState<GooeyVideoResponse | null>(null); // Add this line
 
   const transcriptRef = useRef<HTMLDivElement>(null);
   const currentConversationRef = useRef<string>(conversationId);
@@ -151,6 +157,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     setVideoState('idle');
     setCurrentCaption('');
     setCurrentVideoUrl(null);
+    setGooeyResponse(null); // Clear gooey response
     setSettings(DEFAULT_CONVERSATION_SETTINGS);
     setTranscriptMessages([]);
 
@@ -190,6 +197,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     setInput('');
     setVideoState('thinking');
     setCurrentVideoUrl(null);
+    setGooeyResponse(null); // Clear previous response
 
     try {
       await addMessage({
@@ -217,15 +225,31 @@ export default function ChatView({ conversationId }: ChatViewProps) {
       }
 
       setCurrentCaption(responseText);
+      
+      function prepareTextForVideo(text: string): string {
+        const cleaned = text
+          .replace(/\s+/g, ' ')
+          .replace(/\n/g, ' ')
+          .trim();
 
-   const gooeyResponse = await generateAvatarVideo({
-  text: responseText,
-  language: currentSettings.language,
-  avatarUrl: currentSettings.avatarMediaUrl,
-  gender: currentSettings.avatarVoiceGender
-});
+        // Ensure sentence completion
+        if (!/[.!?।]$/.test(cleaned)) {
+          return cleaned + '।';
+        }
 
+        return cleaned;
+      }
 
+      const safeText = prepareTextForVideo(responseText);
+
+      const gooeyResponseResult = await generateAvatarVideo({
+        text: safeText,
+        language: currentSettings.language,
+        avatarUrl: currentSettings.avatarMediaUrl,
+        gender: currentSettings.avatarVoiceGender
+      });
+
+      setGooeyResponse(gooeyResponseResult); // Store the response
 
       if (currentConversationRef.current !== targetConversationId) {
         return;
@@ -236,10 +260,34 @@ export default function ChatView({ conversationId }: ChatViewProps) {
         { conversationId: targetConversationId, sender: 'ai', text: responseText, createdAt: new Date() }
       ]);
 
-      if (gooeyResponse.success && gooeyResponse.videoUrl) {
-        setCurrentVideoUrl(gooeyResponse.videoUrl);
-        setVideoState('speaking');
+      if (gooeyResponseResult.success) {
+        if (gooeyResponseResult.videoUrls && gooeyResponseResult.videoUrls.length > 0) {
+          // Multiple video chunks - pass them to VideoPlayer
+          setVideoState('speaking');
+          // VideoPlayer will handle playing them sequentially
+        } else if (gooeyResponseResult.videoUrl) {
+          // Single video (backward compatibility)
+          setCurrentVideoUrl(gooeyResponseResult.videoUrl);
+          setVideoState('speaking');
+        } else {
+          // No video URL - fallback to TTS
+          setVideoState('speaking');
+          await speakText(
+            responseText,
+            currentSettings.tone,
+            undefined,
+            () => {
+              if (currentConversationRef.current === targetConversationId) {
+                setVideoState('idle');
+                setCurrentCaption('');
+                setCurrentVideoUrl(null);
+                setGooeyResponse(null);
+              }
+            }
+          );
+        }
       } else {
+        // Gooey failed - fallback to TTS
         setVideoState('speaking');
         await speakText(
           responseText,
@@ -250,6 +298,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
               setVideoState('idle');
               setCurrentCaption('');
               setCurrentVideoUrl(null);
+              setGooeyResponse(null);
             }
           }
         );
@@ -260,6 +309,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
       setVideoState('idle');
       setCurrentCaption('');
       setCurrentVideoUrl(null);
+      setGooeyResponse(null);
     }
   }, [videoState, settings]);
 
@@ -268,9 +318,12 @@ export default function ChatView({ conversationId }: ChatViewProps) {
   }
 
   function handleVideoEnded() {
-    setVideoState('idle');
-    setCurrentCaption('');
-    setCurrentVideoUrl(null);
+    setTimeout(() => {
+      setVideoState('idle');
+      setCurrentCaption('');
+      setCurrentVideoUrl(null);
+      setGooeyResponse(null); // Clear the response
+    }, 700);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -307,29 +360,28 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     }
   }
 
-function sanitizeSettings(settings: ConversationSettings): ConversationSettings {
-  const cleaned = { ...settings };
+  function sanitizeSettings(settings: ConversationSettings): ConversationSettings {
+    const cleaned = { ...settings };
 
-  Object.keys(cleaned).forEach((key) => {
-    if ((cleaned as any)[key] === undefined) {
-      delete (cleaned as any)[key];
-    }
-  });
+    Object.keys(cleaned).forEach((key) => {
+      if ((cleaned as any)[key] === undefined) {
+        delete (cleaned as any)[key];
+      }
+    });
 
-  return cleaned;
-}
-
-async function handleSettingsChange(newSettings: ConversationSettings) {
-  const sanitized = sanitizeSettings(newSettings);
-  setSettings(sanitized);
-
-  try {
-    await updateConversationSettings(conversationId, sanitized);
-  } catch (error) {
-    console.error('Failed to save settings:', error);
+    return cleaned;
   }
-}
 
+  async function handleSettingsChange(newSettings: ConversationSettings) {
+    const sanitized = sanitizeSettings(newSettings);
+    setSettings(sanitized);
+
+    try {
+      await updateConversationSettings(conversationId, sanitized);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  }
 
   const isBusy = videoState === 'thinking' || videoState === 'speaking';
 
@@ -357,13 +409,13 @@ async function handleSettingsChange(newSettings: ConversationSettings) {
         <div className="flex-shrink-0 p-6 pb-4">
           <div className="max-w-2xl mx-auto">
             <VideoPlayer
-  state={videoState}
-  avatarImageUrl={settings.avatarPreviewImageUrl}
-  speakingVideoUrl={currentVideoUrl}
-  caption={currentCaption}
-  onVideoEnded={handleVideoEnded}
-/>
-
+              state={videoState}
+              avatarImageUrl={settings.avatarPreviewImageUrl}
+              speakingVideoUrl={currentVideoUrl} // For backward compatibility
+              speakingVideoUrls={gooeyResponse?.videoUrls} // Pass array of video chunks
+              caption={currentCaption}
+              onVideoEnded={handleVideoEnded}
+            />
           </div>
         </div>
 
