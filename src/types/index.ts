@@ -62,22 +62,9 @@ export interface Message {
   conversationId: string;
   sender: 'user' | 'ai';
   text: string;
-
-  /**
-   * Final Gooey-generated talking video URL (backward compatibility)
-   */
-  videoUrl?: string;
-
-  /**
-   * Array of video chunk URLs for long responses
-   */
-  videoUrls?: string[];
-
-  /**
-   * Transcript text (same as text for now, but kept for clarity)
-   */
   transcript?: string;
-
+  videoUrl?: string | null;
+  videoUrls?: string[] | null;
   createdAt: Date;
 }
 
@@ -139,11 +126,9 @@ export const PREDEFINED_AVATARS: PredefinedAvatar[] = [
    {
     id: 'default-ai',
     name: 'General',
-    avatarMediaUrl:
-      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
-    previewImageUrl:
-      'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg',
-    type: 'default',
+    avatarMediaUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/movs/GeneralMov.mov',
+    previewImageUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/General.png',
+    type: 'celebrity',
     defaultGender: 'male',
     defaultTone: 'Professional',
     defaultPersonality:  `A helpful and knowledgeable AI assistant
@@ -183,10 +168,8 @@ Designed to sound calm, trustworthy, and reassuring.
   {
     id: 'college-mentor',
     name: 'Mentor',
-    avatarMediaUrl:
-      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
-    previewImageUrl:
-      'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg',
+ avatarMediaUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/movs/CollegeMentorMov.mov',
+    previewImageUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/Mentor.png',
     type: 'professional',
     defaultGender: 'male',
     defaultTone: 'Mentor',
@@ -206,7 +189,28 @@ Used for career advice, learning paths, productivity, and personal growth discus
   // STUDENTS / YOUTH
   // ==========================
 
-
+  {
+  "id": "cat-ai",
+  "name": "Cat",
+  "avatarMediaUrl": "https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/movs/CatMov.mov",
+  "previewImageUrl": "https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/Cat.png",
+  "type": "celebrity",
+  "defaultGender": "male",
+  "defaultTone": 'Friendly',
+  "defaultPersonality": "A playful, mischievous cat who thinks it's human! Speaks in casual, lighthearted language with occasional 'meow', 'purr', 'nya', and playful cat-like interjections. Uses wit, gentle humor, and friendly teasing. Responses are short, energetic, and curious—like a cat batting at a conversation. Avoids serious topics, advice, or complex explanations. Views everything through a playful, feline lens.",
+  "defaultDescription": "A playful cat persona for Gemini AI, designed for fun, lighthearted, and engaging chats. This agent acts like a clever, mischievous cat who enjoys casual conversation, playful jokes, and adding 'meow' charm to interactions. Perfect for stress relief, informal companionship, and whimsical conversation. Not for serious, professional, or advisory purposes."
+},
+    {
+    id: 'judge-ai',
+    name: 'Judge',
+    avatarMediaUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/movs/JudgeMov.mov',
+    previewImageUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/Judge.png',
+    type: 'professional',
+    defaultGender: 'female',
+    defaultTone: 'Professional',
+    defaultPersonality: 'Objective, fair, and analytical. Weighs evidence and arguments carefully before forming conclusions. Speaks with authority and clarity. Maintains neutrality and avoids emotional bias. Provides balanced perspectives on complex issues.',
+    defaultDescription: 'A judicial-style AI assistant designed for objective analysis and balanced decision-making. Ideal for debates, ethical discussions, logical reasoning, and impartial advice. Helps users see multiple perspectives and make well-reasoned decisions.'
+  },
 
   // ==========================
   // COMEDIANS / FUN
@@ -215,11 +219,9 @@ Used for career advice, learning paths, productivity, and personal growth discus
   {
     id: 'funny-friend',
     name: 'Funny Friend',
-    avatarMediaUrl:
-      'https://storage.googleapis.com/dara-c1b52.appspot.com/daras_ai/media/26fddf96-3931-11ef-bb1d-02420a000107/1080pexport.mov',
-    previewImageUrl:
-      'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg',
-    type: 'default',
+ avatarMediaUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/movs/SamayMov.mov',
+    previewImageUrl: 'https://cdn.jsdelivr.net/gh/viv2005ek/fantu-avatars@master/images/Samay.png',
+    type: "celebrity",
     defaultGender: 'male',
     defaultTone: 'Friendly',
     defaultPersonality:
@@ -229,7 +231,6 @@ Keeps responses short and energetic.
 Avoids sensitive topics and never gives serious advice.
 Feels like chatting with a close friend.
 `,
-      language: 'hi',
        defaultDescription:
     `A casual, friendly conversational agent designed to make interactions light, engaging, and enjoyable.
 Used for informal chats, stress relief, and relaxed conversations.
