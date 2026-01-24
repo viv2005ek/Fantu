@@ -169,8 +169,7 @@ export function subscribeToUserCompanies(
   const companiesRef = collection(db, 'companies');
   const q = query(
     companiesRef,
-    where('members', 'array-contains', userId),
-    orderBy('createdAt', 'desc')
+    where('members', 'array-contains', userId)
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -181,7 +180,7 @@ export function subscribeToUserCompanies(
       createdAt: doc.data().createdAt.toDate(),
       members: doc.data().members,
       settings: doc.data().settings || DEFAULT_CONVERSATION_SETTINGS
-    }));
+    })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     callback(companies);
   });
 }

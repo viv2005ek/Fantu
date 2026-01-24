@@ -266,15 +266,22 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
   }
 
   async function handleInvite() {
-    if (!inviteEmail.trim()) return;
+    const email = inviteEmail.trim();
+    if (!email) return;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
     try {
-      await addCompanyMember(companyId, inviteEmail.trim());
+      await addCompanyMember(companyId, email);
       setInviteEmail('');
       setShowInviteModal(false);
-      alert(`Invitation sent to ${inviteEmail}`);
+      alert(`${email} has been added to the company`);
     } catch (error) {
-      console.error('Failed to invite member:', error);
-      alert('Failed to send invitation');
+      console.error('Failed to add member:', error);
+      alert('Failed to add member');
     }
   }
 
@@ -371,7 +378,7 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowInviteModal(false)} />
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Invite Team Member</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Add Team Member</h3>
               <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -383,6 +390,7 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   placeholder="colleague@company.com"
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
                 />
@@ -393,7 +401,7 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
                 className="w-full py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Mail className="w-4 h-4" />
-                Send Invitation
+                Add Member
               </button>
             </div>
           </div>
