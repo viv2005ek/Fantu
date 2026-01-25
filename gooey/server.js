@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Pinecone } = require('@pinecone-database/pinecone');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -9,49 +8,6 @@ const PORT = process.env.PORT || 3001;
 // Remove duplicate express.json() middleware - keep only one
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-
-let pineconeClient = null;
-const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'company-documents';
-
-async function initializePinecone() {
-  if (pineconeClient) {
-    return pineconeClient;
-  }
-
-  const apiKey = process.env.PINECONE_API_KEY;
-  if (!apiKey) {
-    throw new Error('PINECONE_API_KEY not configured');
-  }
-
-  pineconeClient = new Pinecone({ apiKey });
-  return pineconeClient;
-}
-
-async function generateEmbedding(text) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'models/text-embedding-004',
-        content: { parts: [{ text }] }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.embedding.values;
-}
 
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
@@ -116,101 +72,12 @@ function fetchWithTimeout(url, options, timeout = 60000) { // 60 seconds
   });
 }
 
-app.post('/api/pinecone/upsert', async (req, res) => {
-  try {
-    const { companyId, documents } = req.body;
-
-    if (!companyId || !documents || !Array.isArray(documents)) {
-      return res.status(400).json({
-        success: false,
-        error: 'companyId and documents array are required'
-      });
-    }
-
-    const pc = await initializePinecone();
-    const index = pc.index(PINECONE_INDEX_NAME);
-
-    const vectors = await Promise.all(
-      documents.map(async (doc) => {
-        const embedding = await generateEmbedding(doc.text);
-        return {
-          id: doc.id,
-          values: embedding,
-          metadata: {
-            ...doc.metadata,
-            companyId: companyId,
-            text: doc.text.substring(0, 1000)
-          }
-        };
-      })
-    );
-
-    await index.upsert(vectors);
-
-    res.json({
-      success: true,
-      message: `Successfully upserted ${vectors.length} documents`
-    });
-  } catch (error) {
-    console.error('Error upserting to Pinecone:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.post('/api/pinecone/query', async (req, res) => {
-  try {
-    const { companyId, query, topK = 5 } = req.body;
-
-    if (!companyId || !query) {
-      return res.status(400).json({
-        success: false,
-        error: 'companyId and query are required'
-      });
-    }
-
-    const pc = await initializePinecone();
-    const index = pc.index(PINECONE_INDEX_NAME);
-
-    const queryEmbedding = await generateEmbedding(query);
-
-    const queryResponse = await index.query({
-      vector: queryEmbedding,
-      topK: topK,
-      includeMetadata: true,
-      filter: {
-        companyId: { $eq: companyId }
-      }
-    });
-
-    const results = queryResponse.matches.map((match) => ({
-      text: (match.metadata?.text) || '',
-      score: match.score || 0,
-      metadata: match.metadata || {}
-    }));
-
-    res.json({
-      success: true,
-      results
-    });
-  } catch (error) {
-    console.error('Error querying Pinecone:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     serverTime: new Date().toISOString(),
     port: PORT,
-    gooeyApiKeyConfigured: !!GOOEY_API_KEY,
-    pineconeConfigured: !!process.env.PINECONE_API_KEY
+    gooeyApiKeyConfigured: !!GOOEY_API_KEY
   });
 });
 // Helper function to truncate text based on language

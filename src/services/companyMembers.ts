@@ -16,17 +16,11 @@ export async function getCompanyMembers(companyId: string): Promise<CompanyMembe
     const q = query(membersRef, where('company_id', '==', companyId));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        company_id: data.company_id,
-        email: data.email,
-        role: data.role,
-        added_by: data.added_by,
-        created_at: data.created_at?.toDate() || new Date()
-      } as CompanyMember;
-    });
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate() || new Date()
+    })) as CompanyMember[];
   } catch (error) {
     console.error('Error fetching company members:', error);
     throw error;
@@ -41,22 +35,12 @@ export function subscribeToCompanyMembers(
   const q = query(membersRef, where('company_id', '==', companyId));
 
   return onSnapshot(q, (snapshot) => {
-    const members = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        company_id: data.company_id,
-        email: data.email,
-        role: data.role,
-        added_by: data.added_by,
-        created_at: data.created_at?.toDate() || new Date()
-      } as CompanyMember;
-    });
-    console.log(`Fetched ${members.length} members for company ${companyId}:`, members);
+    const members = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate() || new Date()
+    })) as CompanyMember[];
     callback(members);
-  }, (error) => {
-    console.error('Error in subscribeToCompanyMembers:', error);
-    callback([]);
   });
 }
 

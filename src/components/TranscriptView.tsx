@@ -102,7 +102,7 @@ export default function TranscriptView({ messages, onPlayMessage, transcriptHeig
     : messages;
 
   return (
-    <div className="px-6 h-full">
+    <div className="px-6" style={{ height: `${transcriptHeight}%`, minHeight: '200px' }}>
       <div className="max-w-2xl mx-auto h-full flex flex-col">
         <div
           className="flex items-center justify-center py-1 cursor-ns-resize hover:bg-gray-200 rounded-t-lg transition-colors"
