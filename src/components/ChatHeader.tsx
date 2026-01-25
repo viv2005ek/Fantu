@@ -8,7 +8,6 @@ interface ChatHeaderProps {
   showInviteButton?: boolean;
   onRagClick?: () => void;
   showRagButton?: boolean;
-  documentCount?: number;
 }
 
 export default function ChatHeader({
@@ -17,8 +16,7 @@ export default function ChatHeader({
   onInviteClick,
   showInviteButton = false,
   onRagClick,
-  showRagButton = false,
-  documentCount = 0
+  showRagButton = false
 }: ChatHeaderProps) {
   return (
     <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200">
@@ -38,11 +36,6 @@ export default function ChatHeader({
             <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Add to RAG</span>
             <span className="sm:hidden">RAG</span>
-            {documentCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-gray-900 text-white rounded-full">
-                {documentCount}
-              </span>
-            )}
           </button>
         )}
         {showInviteButton && onInviteClick && (

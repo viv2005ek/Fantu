@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.91.1",
     "firebase": "^12.8.0",
     "lucide-react": "^0.344.0",
+    "pdfjs-dist": "^5.4.530",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.12.0"

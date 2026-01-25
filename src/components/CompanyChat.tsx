@@ -14,6 +14,7 @@ import { generateAvatarVideo, GooeyVideoResponse } from '../services/gooey';
 import { speakText, stopSpeaking } from '../services/tts';
 import { queryDocuments, upsertDocuments } from '../services/pinecone';
 import { subscribeToCompanyMembers, addCompanyMemberToFirestore, removeCompanyMember, ensureCompanyOwner, CompanyMember } from '../services/companyMembers';
+import { extractTextFromPDF } from '../services/pdfParser';
 import { useAuth } from '../contexts/AuthContext';
 import AvatarSettingsPanel from './AvatarSettingsPanel';
 import VideoPlayer, { VideoState } from './VideoPlayer';
@@ -46,6 +47,8 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
   const [inviteEmail, setInviteEmail] = useState('');
   const [documentTitle, setDocumentTitle] = useState('');
   const [documentContent, setDocumentContent] = useState('');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
   const [transcriptHeight, setTranscriptHeight] = useState(300);
 
   useEffect(() => {
@@ -105,24 +108,33 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
 
       let documentContext = '';
       try {
-        const relevantDocs = await queryDocuments(companyId, userMessage, 3);
+        const relevantDocs = await queryDocuments(companyId, userMessage, 5);
         if (relevantDocs.length > 0) {
-          documentContext = `\n\nRelevant Company Documents (from vector search):\n${relevantDocs.map((doc, i) =>
-            `[Document ${i + 1} - Relevance: ${(doc.score * 100).toFixed(1)}%]\n${doc.text}`
-          ).join('\n\n')}`;
+          documentContext = `\n\n[COMPANY KNOWLEDGE BASE - Retrieved from Vector Database]\n${relevantDocs.map((doc, i) =>
+            `Document ${i + 1} (Relevance: ${(doc.score * 100).toFixed(1)}%):\n${doc.text}\n---`
+          ).join('\n')}`;
+          console.log(`Retrieved ${relevantDocs.length} relevant documents from Pinecone for RAG`);
+        } else {
+          console.log('No relevant documents found in Pinecone');
         }
       } catch (error) {
         console.error('Pinecone query error:', error);
         if (companyDocuments.length > 0) {
-          documentContext = `\n\nCompany Documents:\n${companyDocuments.map(doc =>
-            `${doc.title}:\n${doc.content}`
-          ).join('\n\n')}`;
+          documentContext = `\n\n[COMPANY KNOWLEDGE BASE - Fallback]\n${companyDocuments.map(doc =>
+            `${doc.title}:\n${doc.content}\n---`
+          ).join('\n')}`;
         }
       }
 
+      const systemContext = documentContext
+        ? `You are an AI assistant with access to the company's knowledge base. Use the following relevant documents to answer the user's question accurately. If the answer is not in the documents, say so clearly.${documentContext}`
+        : '';
+
       const enhancedUserMessage = attachmentContext
-        ? `${documentContext}\n\nAttached content context:\n${attachmentContext}\n\nUser query:\n${userMessage}`
-        : `${documentContext}\n\nUser query:\n${userMessage}`;
+        ? `${systemContext}\n\nAttached content context:\n${attachmentContext}\n\n[USER QUESTION]\n${userMessage}`
+        : systemContext
+          ? `${systemContext}\n\n[USER QUESTION]\n${userMessage}`
+          : userMessage;
 
       const responseText = await generateAIResponse(
         enhancedUserMessage,
@@ -327,6 +339,37 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
     }
   }
 
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('Please upload a PDF file');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('PDF file size must be less than 10MB');
+      return;
+    }
+
+    setPdfFile(file);
+    setIsProcessingPdf(true);
+
+    try {
+      const extractedText = await extractTextFromPDF(file);
+      setDocumentContent(extractedText);
+      setDocumentTitle(file.name.replace('.pdf', ''));
+      alert('PDF processed successfully! Review the content before uploading.');
+    } catch (error) {
+      console.error('Failed to process PDF:', error);
+      alert('Failed to process PDF file');
+      setPdfFile(null);
+    } finally {
+      setIsProcessingPdf(false);
+    }
+  }
+
   async function handleDocumentUpload() {
     if (!documentTitle.trim() || !documentContent.trim()) return;
     try {
@@ -359,6 +402,7 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
 
       setDocumentTitle('');
       setDocumentContent('');
+      setPdfFile(null);
       setShowDocumentUpload(false);
       alert('Document added and indexed successfully');
     } catch (error) {
@@ -378,7 +422,6 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
         showInviteButton={true}
         onRagClick={() => setShowDocumentUpload(true)}
         showRagButton={true}
-        documentCount={companyDocuments.length}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -485,7 +528,7 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
                           </p>
                           <p className="text-xs text-gray-500 capitalize">{member.role}</p>
                         </div>
-                        {member.role !== 'owner' && (
+                        {member.role !== 'owner' && member.email !== currentUser?.email && (
                           <button
                             onClick={() => handleRemoveMember(member.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -519,6 +562,27 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
             </div>
             <div className="space-y-5">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Upload PDF Document</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePdfUpload}
+                    disabled={isProcessingPdf}
+                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-900 file:text-white hover:file:bg-gray-800 file:cursor-pointer"
+                  />
+                  {isProcessingPdf && (
+                    <div className="absolute right-3 top-3">
+                      <div className="animate-spin h-5 w-5 border-2 border-gray-900 border-t-transparent rounded-full"></div>
+                    </div>
+                  )}
+                </div>
+                {pdfFile && (
+                  <p className="text-xs text-green-600 mt-2">PDF loaded: {pdfFile.name}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Or manually enter document details below</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Document Title</label>
                 <input
                   type="text"
@@ -540,7 +604,7 @@ export default function CompanyChat({ companyId }: CompanyChatProps) {
               </div>
               <button
                 onClick={handleDocumentUpload}
-                disabled={!documentTitle.trim() || !documentContent.trim()}
+                disabled={!documentTitle.trim() || !documentContent.trim() || isProcessingPdf}
                 className="w-full py-3.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:scale-105 ripple font-medium"
               >
                 <Upload className="w-4 h-4" />
