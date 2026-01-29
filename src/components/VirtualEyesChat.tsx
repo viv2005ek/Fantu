@@ -70,18 +70,32 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
 
   async function startCamera() {
     try {
+      console.log('Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 }
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
-        await videoRef.current.play();
-        setIsCameraActive(true);
+
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Camera stream ready, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+          videoRef.current?.play().then(() => {
+            console.log('Camera video playing');
+            setIsCameraActive(true);
+          }).catch(err => {
+            console.error('Failed to play video:', err);
+          });
+        };
       }
     } catch (error) {
       console.error('Failed to start camera:', error);
-      alert('Failed to access camera. Please check permissions.');
+      alert('Failed to access camera. Please check permissions and ensure you are using HTTPS.');
     }
   }
 
@@ -98,23 +112,34 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
 
   async function captureAndProcessVision(): Promise<VisionContext | null> {
     if (!videoRef.current || !canvasRef.current || !isCameraActive) {
+      console.log('Vision capture skipped - camera not active or refs not ready');
       return null;
     }
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
 
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.log('Video dimensions not ready yet');
+      return null;
+    }
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!ctx) {
+      console.log('Failed to get canvas context');
+      return null;
+    }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    console.log('Captured frame from video:', canvas.width, 'x', canvas.height);
 
     setIsProcessingVision(true);
     try {
       const visionContext = await processVisionSnapshot(canvas);
+      console.log('Vision processing complete:', visionContext);
       return visionContext;
     } catch (error) {
       console.error('Failed to process vision:', error);
@@ -153,11 +178,29 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
         setVisionContextHistory(prev => [...prev, visionContext].slice(-10));
         contextWindow += contextWindow ? '\n' : '';
         contextWindow += `[Current view - ${visionContext.timestamp.toLocaleTimeString()}] ${visionContext.description}`;
+        console.log('Vision context added to prompt:', visionContext.description);
+      } else {
+        console.log('No vision context captured');
       }
 
       const systemPrompt = contextWindow
-        ? `You are an AI assistant with visual perception through a camera. You can see the user's surroundings and help them understand their environment.\n\nVISUAL CONTEXT (from camera):\n${contextWindow}\n\n[USER QUESTION]\n${userMessage}`
+        ? `IMPORTANT: You are an AI assistant with LIVE CAMERA ACCESS. You can SEE through the camera in real-time.
+
+WHAT YOU CAN SEE RIGHT NOW (from camera):
+${contextWindow}
+
+USER'S QUESTION: "${userMessage}"
+
+INSTRUCTIONS:
+- Answer the user's question based on what you SEE in the camera feed
+- If they ask "what's in my hand", describe the objects you detected that are close/foreground
+- Be specific about what objects were detected and their positions
+- If you see objects, describe them confidently
+- If no objects were detected, say so honestly
+- Always reference the visual information when answering`
         : userMessage;
+
+      console.log('Sending prompt to AI with vision context:', contextWindow ? 'YES' : 'NO');
 
       const responseText = await generateAIResponse(
         systemPrompt,
@@ -258,7 +301,21 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
                     <Eye className="w-8 h-8 text-blue-600" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">Virtual Eyes Mode</h3>
-                  <p className="text-gray-600">AI can see and understand your surroundings through the camera</p>
+                  <p className="text-gray-600 mb-4">AI can see and understand your surroundings through the camera</p>
+
+                  {!isCameraActive && (
+                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-md mx-auto">
+                      <p className="text-sm text-amber-800 font-medium mb-2">Camera is currently off</p>
+                      <p className="text-xs text-amber-700">Click "Start Camera" in the top right to enable AI vision</p>
+                    </div>
+                  )}
+
+                  {isCameraActive && (
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg max-w-md mx-auto">
+                      <p className="text-sm text-green-800 font-medium mb-2">Camera Active</p>
+                      <p className="text-xs text-green-700">AI can now see what's in front of your camera. Ask me anything!</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -325,7 +382,7 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
           </div>
 
           {isCameraActive && (
-            <div className="absolute bottom-6 right-6 w-48 h-36 bg-black rounded-lg overflow-hidden shadow-2xl border-2 border-white z-10">
+            <div className="absolute bottom-6 right-6 w-56 h-42 bg-black rounded-lg overflow-hidden shadow-2xl border-3 border-green-500 z-10">
               <video
                 ref={videoRef}
                 autoPlay
@@ -335,16 +392,22 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
                 style={{ transform: 'scaleX(-1)' }}
               />
               {isProcessingVision && (
-                <div className="absolute inset-0 bg-blue-600/40 flex items-center justify-center">
-                  <div className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">
-                    Processing...
+                <div className="absolute inset-0 bg-blue-600/50 flex items-center justify-center backdrop-blur-sm">
+                  <div className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                    <Eye className="w-4 h-4 animate-pulse" />
+                    <span>Analyzing Vision...</span>
                   </div>
                 </div>
               )}
               <div className="absolute top-2 left-2">
-                <div className="flex items-center gap-1 px-2 py-1 bg-black/60 rounded text-xs text-white">
+                <div className="flex items-center gap-1 px-2 py-1 bg-black/80 rounded text-xs text-white font-medium">
                   <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span>You</span>
+                  <span>Your Camera (Live)</span>
+                </div>
+              </div>
+              <div className="absolute bottom-2 left-2">
+                <div className="px-2 py-1 bg-green-600/90 rounded text-xs text-white font-medium">
+                  AI Vision Active
                 </div>
               </div>
             </div>
