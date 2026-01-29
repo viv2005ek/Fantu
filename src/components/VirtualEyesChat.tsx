@@ -124,7 +124,7 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
   }
 
   async function handleSendMessage() {
-    if (!input.trim() || videoState === 'speaking') return;
+    if (!input.trim() || videoState === 'speaking' || videoState === 'thinking') return;
 
     const userMessage = input.trim();
     setInput('');
@@ -212,6 +212,13 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
     }
   }
 
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  }
+
   function handleVideoEnd() {
     setVideoState('idle');
     setCurrentCaption('');
@@ -233,10 +240,10 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
 
       {showSettings && (
         <AvatarSettingsPanel
-          isOpen={showSettings}
-          onClose={() => setShowSettings(false)}
+          conversationId={conversationId}
           settings={settings}
-          onSave={handleSettingsSave}
+          onSettingsChange={handleSettingsSave}
+          onClose={() => setShowSettings(false)}
         />
       )}
 
@@ -265,14 +272,14 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
           <MessageInput
             input={input}
             onInputChange={setInput}
-            onSendMessage={handleSendMessage}
-            disabled={videoState === 'speaking' || videoState === 'thinking'}
+            onSend={handleSendMessage}
+            onKeyDown={handleKeyDown}
+            isBusy={videoState === 'speaking' || videoState === 'thinking'}
             isListening={false}
             onToggleListening={() => {}}
-            speechSupported={false}
             speechError={null}
-            onFileSelect={() => {}}
             attachments={[]}
+            onAttachmentSelect={() => {}}
             onRemoveAttachment={() => {}}
             isProcessingAttachments={isProcessingVision}
           />
@@ -338,11 +345,11 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
           <div className="p-4 bg-gray-50">
             <VideoPlayer
               state={videoState}
-              currentCaption={currentCaption}
-              settings={settings}
-              currentVideoUrl={currentVideoUrl}
-              gooeyResponse={gooeyResponse}
-              onVideoEnd={handleVideoEnd}
+              avatarImageUrl={settings.avatarPreviewImageUrl}
+              speakingVideoUrl={currentVideoUrl}
+              speakingVideoUrls={gooeyResponse?.videoUrls || []}
+              caption={currentCaption}
+              onVideoEnded={handleVideoEnd}
             />
           </div>
         </div>
