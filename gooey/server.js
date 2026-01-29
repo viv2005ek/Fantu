@@ -186,13 +186,14 @@ const chunkSize = language === 'hi' ? 25 : 25; // Slightly smaller chunks for Hi
         : 'en-IN-Wavenet-D';
     }
 
-    // ---- Generate videos for each chunk ----
+    // ---- Generate videos for each chunk with retry logic ----
     const videoUrls = [];
-    
+    const maxRetries = 3;
+
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       console.log(`Processing chunk ${i + 1}/${chunks.length}: "${chunk.substring(0, 30)}..."`);
-      
+
       const payload = {
         text_prompt: chunk,
         tts_provider: 'GOOGLE_TTS',
@@ -206,40 +207,82 @@ const chunkSize = language === 'hi' ? 25 : 25; // Slightly smaller chunks for Hi
         input_face: avatarUrl || DEFAULT_FACE_URL
       };
 
-      // USE fetchWithTimeout HERE (inside the loop)
-      const response = await fetchWithTimeout(GOOEY_LIPSYNC_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'bearer ' + GOOEY_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      }, 600000); // 60 seconds timeout
+      let videoUrl = null;
+      let lastError = null;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Gooey API error for chunk ${i + 1}:`, response.status, errorText);
-        throw new Error(`Failed to generate chunk ${i + 1}: ${errorText}`);
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`Attempt ${attempt}/${maxRetries} for chunk ${i + 1}/${chunks.length}`);
+
+          const response = await fetchWithTimeout(GOOEY_LIPSYNC_ENDPOINT, {
+            method: 'POST',
+            headers: {
+              'Authorization': 'bearer ' + GOOEY_API_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          }, 60000);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API returned ${response.status}: ${errorText}`);
+          }
+
+          const result = await response.json();
+          videoUrl = result?.output?.output_video;
+
+          if (!videoUrl) {
+            throw new Error('No output_video returned from API');
+          }
+
+          console.log(`✓ Successfully generated chunk ${i + 1}: ${videoUrl}`);
+          break;
+
+        } catch (error) {
+          lastError = error;
+          console.error(`✗ Attempt ${attempt}/${maxRetries} failed for chunk ${i + 1}:`, error.message);
+
+          if (attempt < maxRetries) {
+            const delayMs = attempt * 2000;
+            console.log(`Waiting ${delayMs}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+        }
       }
 
-      const result = await response.json();
-      const videoUrl = result?.output?.output_video;
-      
       if (!videoUrl) {
-        throw new Error(`No output_video returned for chunk ${i + 1}`);
+        console.error(`Failed to generate chunk ${i + 1} after ${maxRetries} attempts. Skipping this chunk.`);
+        console.error(`Last error:`, lastError?.message);
+      } else {
+        videoUrls.push(videoUrl);
       }
-      
-      videoUrls.push(videoUrl);
-      console.log(`Generated chunk ${i + 1}: ${videoUrl}`);
     }
 
-    console.log(`Successfully generated ${videoUrls.length} video chunks`);
+    const successCount = videoUrls.length;
+    const failedCount = chunks.length - successCount;
+
+    if (successCount === 0) {
+      console.error('Failed to generate any video chunks');
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate any video chunks after multiple retries'
+      });
+    }
+
+    console.log(`Successfully generated ${successCount}/${chunks.length} video chunks`);
+    if (failedCount > 0) {
+      console.warn(`${failedCount} chunk(s) failed to generate`);
+    }
 
     return res.json({
       success: true,
       videoUrls,
-      totalChunks: videoUrls.length,
-      message: `Generated ${videoUrls.length} video chunks. You need to concatenate them client-side.`
+      totalChunks: chunks.length,
+      successCount,
+      failedCount,
+      message: failedCount > 0
+        ? `Generated ${successCount}/${chunks.length} video chunks. ${failedCount} chunk(s) failed after retries.`
+        : `Generated ${successCount} video chunks successfully.`
     });
 
   } catch (error) {

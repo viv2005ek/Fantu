@@ -117,10 +117,27 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 
 export async function addMessage(message: Omit<Message, 'id'>): Promise<string> {
   const messagesRef = collection(db, 'messages');
-  const docRef = await addDoc(messagesRef, {
-    ...message,
+
+  const messageData: any = {
+    conversationId: message.conversationId,
+    sender: message.sender,
+    text: message.text,
     createdAt: Timestamp.now()
-  });
+  };
+
+  if (message.transcript !== undefined) {
+    messageData.transcript = message.transcript;
+  }
+
+  if (message.videoUrl !== undefined && message.videoUrl !== null) {
+    messageData.videoUrl = message.videoUrl;
+  }
+
+  if (message.videoUrls !== undefined && message.videoUrls !== null) {
+    messageData.videoUrls = message.videoUrls;
+  }
+
+  const docRef = await addDoc(messagesRef, messageData);
   return docRef.id;
 }
 
