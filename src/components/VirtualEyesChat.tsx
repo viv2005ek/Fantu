@@ -79,6 +79,36 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
     }
   }, [isCameraActive]);
 
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current && !videoRef.current.srcObject) {
+      console.log('🔄 [ASSIGN STREAM] Video element is now mounted! Assigning stream...');
+      console.log('🔄 [ASSIGN STREAM] videoRef.current:', videoRef.current);
+      console.log('🔄 [ASSIGN STREAM] streamRef.current:', streamRef.current);
+
+      videoRef.current.srcObject = streamRef.current;
+
+      videoRef.current.onloadedmetadata = () => {
+        console.log('🎬 [VIDEO METADATA] Metadata loaded!');
+        console.log('🎬 [VIDEO METADATA] Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+        console.log('🎬 [VIDEO METADATA] Video readyState:', videoRef.current?.readyState);
+      };
+
+      videoRef.current.oncanplay = () => {
+        console.log('▶️ [VIDEO CANPLAY] Video can play now');
+      };
+
+      videoRef.current.onplay = () => {
+        console.log('✅ [VIDEO PLAYING] Video is now playing!');
+      };
+
+      videoRef.current.onerror = (e) => {
+        console.error('❌ [VIDEO ERROR] Video element error:', e);
+      };
+
+      console.log('🔄 [ASSIGN STREAM] Stream assigned to video element!');
+    }
+  }, [isCameraActive, videoRef.current, streamRef.current]);
+
   async function startCamera() {
     try {
       console.log('🎥 [START CAMERA] Button clicked - requesting camera access...');
@@ -96,32 +126,12 @@ export default function VirtualEyesChat({ conversationId }: VirtualEyesChatProps
       console.log('🎥 [START CAMERA] Track enabled:', stream.getVideoTracks()[0]?.enabled);
       console.log('🎥 [START CAMERA] Track readyState:', stream.getVideoTracks()[0]?.readyState);
 
-      if (videoRef.current) {
-        console.log('🎥 [START CAMERA] Video ref exists, assigning stream...');
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
+      console.log('🎥 [START CAMERA] Storing stream in streamRef...');
+      streamRef.current = stream;
 
-        console.log('🎥 [START CAMERA] Waiting for metadata to load...');
-        videoRef.current.onloadedmetadata = () => {
-          console.log('🎥 [START CAMERA] Metadata loaded!');
-          console.log('🎥 [START CAMERA] Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-          console.log('🎥 [START CAMERA] Video readyState:', videoRef.current?.readyState);
-
-          videoRef.current?.play().then(() => {
-            console.log('✅ [START CAMERA] Video is now playing!');
-            console.log('✅ [START CAMERA] Setting isCameraActive to true');
-            setIsCameraActive(true);
-          }).catch(err => {
-            console.error('❌ [START CAMERA] Failed to play video:', err);
-          });
-        };
-
-        videoRef.current.onerror = (e) => {
-          console.error('❌ [START CAMERA] Video element error:', e);
-        };
-      } else {
-        console.error('❌ [START CAMERA] videoRef.current is null!');
-      }
+      console.log('🎥 [START CAMERA] Setting isCameraActive to true (video element will now render)...');
+      setIsCameraActive(true);
+      console.log('✅ [START CAMERA] State updated! Video element should render now.');
     } catch (error) {
       console.error('❌ [START CAMERA] Failed to get camera stream:', error);
       alert('Failed to access camera. Please check permissions and ensure you are using HTTPS.');
