@@ -510,7 +510,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
   const isBusy = videoState === 'thinking' || videoState === 'speaking';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-slate-900 overflow-hidden relative z-10">
       <ChatHeader
         settings={settings}
         onSettingsClick={() => setShowSettings(true)}

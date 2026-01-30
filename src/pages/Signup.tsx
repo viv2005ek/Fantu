@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Video, Mail, Lock, Loader2 } from 'lucide-react';
+import { MessageCircle, Mail, Lock, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -41,96 +43,111 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex flex-col relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_var(--tw-gradient-stops))] from-gray-800/20 via-transparent to-transparent"></div>
+    <div className="min-h-screen bg-slate-950 flex flex-col relative overflow-hidden">
+      <AnimatedBackground />
 
-      <nav className="px-6 py-4 border-b border-white/10 glass-dark backdrop-blur-md relative z-10">
+      <nav className="px-6 py-4 border-b border-cyan-500/20 glass-darker backdrop-blur-md relative z-10">
         <Link to="/" className="flex items-center gap-2 w-fit group">
           <div className="relative">
-            <Video className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
-            <div className="absolute inset-0 bg-white/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            >
+              <MessageCircle className="w-8 h-8 text-cyan-400 group-hover:scale-110 transition-transform" />
+            </motion.div>
+            <div className="absolute inset-0 bg-cyan-400 rounded-full blur-lg opacity-50"></div>
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 text-gradient">
-            Persona Video AI
+          <span className="text-xl font-bold heading-font bg-gradient-to-r from-cyan-400 to-blue-400 text-gradient">
+            Thread.ai
           </span>
         </Link>
       </nav>
 
       <div className="flex-1 flex items-center justify-center px-6 py-12 relative z-10">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8 animate-slide-up">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 text-gradient mb-3">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-md"
+        >
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold heading-font bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-400 text-gradient mb-3">
               Create Account
             </h1>
-            <p className="text-gray-400 text-lg">Sign up to start chatting with AI</p>
+            <p className="text-slate-400 text-lg">Sign up to start chatting with AI</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6 animate-slide-up" style={{animationDelay: '0.1s'}}>
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl backdrop-blur-sm animate-scale-in">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 glass-effect border border-red-500/30 rounded-xl backdrop-blur-sm"
+              >
                 <p className="text-red-400 text-sm">{error}</p>
-              </div>
+              </motion.div>
             )}
 
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-cyan-400 heading-font">
                 Email
               </label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-white transition-colors" />
+                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-12 pr-4 py-4 glass-effect border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/30 transition-all"
+                  className="w-full pl-12 pr-4 py-4 glass-effect border border-cyan-500/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 hover:border-cyan-500/30 transition-all"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-cyan-400 heading-font">
                 Password
               </label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-white transition-colors" />
+                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
                 <input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-12 pr-4 py-4 glass-effect border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/30 transition-all"
+                  className="w-full pl-12 pr-4 py-4 glass-effect border border-cyan-500/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 hover:border-cyan-500/30 transition-all"
                   placeholder="At least 6 characters"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-cyan-400 heading-font">
                 Confirm Password
               </label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-white transition-colors" />
+                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
                 <input
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="w-full pl-12 pr-4 py-4 glass-effect border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/30 transition-all"
+                  className="w-full pl-12 pr-4 py-4 glass-effect border border-cyan-500/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 hover:border-cyan-500/30 transition-all"
                   placeholder="Confirm your password"
                 />
               </div>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-white text-black font-semibold rounded-xl hover:bg-gray-100 hover:shadow-2xl hover:shadow-white/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ripple hover:scale-[1.02]"
+              className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl hover:neon-glow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ripple heading-font"
             >
               {loading ? (
                 <>
@@ -140,19 +157,17 @@ export default function Signup() {
               ) : (
                 'Sign Up'
               )}
-            </button>
+            </motion.button>
           </form>
 
-          <p className="mt-8 text-center text-gray-400 animate-slide-up" style={{animationDelay: '0.2s'}}>
+          <p className="mt-8 text-center text-slate-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-white hover:text-gray-200 font-medium transition-colors hover:underline">
+            <Link to="/login" className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors hover:underline">
               Login
             </Link>
           </p>
-        </div>
+        </motion.div>
       </div>
-
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
     </div>
   );
 }

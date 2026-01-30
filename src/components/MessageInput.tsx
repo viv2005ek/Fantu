@@ -1,4 +1,5 @@
 import { Send, Mic, MicOff, Paperclip } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface MessageInputProps {
   input: string;
@@ -33,24 +34,30 @@ export default function MessageInput({
     <div className="flex-shrink-0 p-6 pt-4">
       <div className="max-w-2xl mx-auto">
         {speechError && (
-          <div className="mb-3 px-4 py-2 bg-red-50 border border-red-100 rounded-xl">
-            <p className="text-xs text-red-600">{speechError}</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-3 px-4 py-2 glass-effect border border-red-500/30 rounded-xl"
+          >
+            <p className="text-xs text-red-400">{speechError}</p>
+          </motion.div>
         )}
 
-        <div className="flex items-center gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm p-2">
-          <button
+        <div className="flex items-center gap-3 glass-effect rounded-2xl border border-cyan-500/20 shadow-2xl p-2 hover:neon-border transition-all duration-300">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={onToggleListening}
             disabled={isBusy}
             className={`flex-shrink-0 p-4 rounded-xl transition-all ${
               isListening
-                ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/50 animate-pulse-glow'
+                : 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
             title={isListening ? 'Stop listening' : 'Start voice input'}
           >
             {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-          </button>
+          </motion.button>
 
           <input
             id="attachment-input"
@@ -97,22 +104,26 @@ export default function MessageInput({
                 ? 'Listening...'
                 : attachments.length > 0
                 ? `Message (${attachments.length} attachment${attachments.length > 1 ? 's' : ''})`
-                : 'Or type your message...'
+                : 'Type your message...'
             }
             disabled={isBusy || isListening}
-            className="flex-1 px-4 py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-transparent text-white placeholder-slate-500 focus:outline-none disabled:opacity-50"
           />
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => document.getElementById('attachment-input')?.click()}
             disabled={isBusy || isProcessingAttachments}
-            className="p-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+            className="p-3 rounded-xl bg-gradient-to-r from-slate-700 to-slate-600 text-cyan-300 hover:from-slate-600 hover:to-slate-500 disabled:opacity-50 border border-cyan-500/20"
             title="Add attachment"
           >
             <Paperclip className="w-5 h-5" />
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={onSend}
             disabled={
               !input.trim() ||
@@ -120,13 +131,13 @@ export default function MessageInput({
               isListening ||
               isProcessingAttachments
             }
-            className="flex-shrink-0 p-4 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-shrink-0 p-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl hover:neon-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
-          </button>
+          </motion.button>
         </div>
 
-        <p className="mt-3 text-xs text-gray-400 text-center">
+        <p className="mt-3 text-xs text-slate-400 text-center">
           {isListening
             ? 'Speak now... your message will be sent automatically'
             : 'Press the microphone to speak or type your message'}
