@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useRef, useEffect, useState } from 'react';
 import { Loader2, User } from 'lucide-react';
 
@@ -298,7 +299,7 @@ export default function VideoPlayer({
                 <img
                   src={displayAvatar}
                   alt="AI Avatar"
-                  className={`w-full h-full object-cover transition-transform duration-200 ${
+                  className={`w-full h-full object-contain transition-transform duration-200 ${
                     state === 'speaking' ? 'avatar-speaking' : ''
                   }`}
                 />

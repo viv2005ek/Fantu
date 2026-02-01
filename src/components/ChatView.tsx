@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Mic, MicOff, Settings } from 'lucide-react';
 import { Paperclip } from 'lucide-react';
 
+
 import { 
   Message, 
   ConversationSettings, 
@@ -191,142 +192,177 @@ const [isProcessingAttachments, setIsProcessingAttachments] = useState(false);
     }
   }, [transcriptMessages]);
 
-  const handleSendWithText = useCallback(async (text: string) => {
-    if (!text.trim() || videoState === 'thinking' || videoState === 'speaking') return;
+ const handleSendWithText = useCallback(async (text: string) => {
+  if (!text.trim() || videoState === 'thinking' || videoState === 'speaking') return;
 
-    const userMessage = text.trim();
-    const targetConversationId = currentConversationRef.current;
-    const currentSettings = settings;
-    const conversationHistory = messagesRef.current;
+  const userMessage = text.trim();
+  const targetConversationId = currentConversationRef.current;
+  const currentSettings = settings;
+  const conversationHistory = messagesRef.current;
 
-    setInput('');
-    setVideoState('thinking');
-    setCurrentVideoUrl(null);
-    setGooeyResponse(null); // Clear previous response
+  console.log('💬 Sending message:', { 
+    text: userMessage.substring(0, 50) + '...',
+    attachmentsCount: attachments.length,
+    hasContext: !!attachmentContext 
+  });
 
+  setInput('');
+  setVideoState('thinking');
+  setCurrentVideoUrl(null);
+  setGooeyResponse(null);
+
+  try {
+    // Save user message
+    await addMessage({
+      conversationId: targetConversationId,
+      sender: 'user',
+      text: userMessage,
+      videoUrls: null,
+      createdAt: new Date()
+    });
+
+    const enhancedUserMessage = attachmentContext
+      ? `Attached content context:\n${attachmentContext}\n\nUser query:\n${userMessage}`
+      : userMessage;
+
+    const responseText = await generateAIResponse(
+      enhancedUserMessage,
+      currentSettings,
+      conversationHistory
+    );
+
+    if (currentConversationRef.current !== targetConversationId) {
+      console.log('⚠️ Conversation changed, aborting');
+      return;
+    }
+
+    console.log('🤖 AI Response generated:', responseText.substring(0, 100) + '...');
+
+    // Prepare text for video generation
+    function prepareTextForVideo(text: string): string {
+      const cleaned = text
+        .replace(/\s+/g, ' ')
+        .replace(/\n/g, ' ')
+        .trim();
+
+      if (!/[.!?।]$/.test(cleaned)) {
+        return cleaned + '।';
+      }
+
+      return cleaned;
+    }
+
+    const safeText = prepareTextForVideo(responseText);
+    let gooeyResponseResult: GooeyVideoResponse | null = null;
+    let videoUrlsToSave: string[] | null = null;
+
+    console.log('🎬 Generating avatar video for text:', safeText.substring(0, 100) + '...');
+    
     try {
-      await addMessage({
-        conversationId: targetConversationId,
-        sender: 'user',
-        text: userMessage,
-        createdAt: new Date()
-      });
-
-const enhancedUserMessage = attachmentContext
-  ? `Attached content context:\n${attachmentContext}\n\nUser query:\n${userMessage}`
-  : userMessage;
-
-const responseText = await generateAIResponse(
-  enhancedUserMessage,
-  currentSettings,
-  conversationHistory
-);
-
-      if (currentConversationRef.current !== targetConversationId) {
-        return;
-      }
-
-      await addMessage({
-        conversationId: targetConversationId,
-        sender: 'ai',
-        text: responseText,
-        createdAt: new Date()
-      });
-
-      if (currentConversationRef.current !== targetConversationId) {
-        return;
-      }
-
-      setCurrentCaption(responseText);
-      
-      function prepareTextForVideo(text: string): string {
-        const cleaned = text
-          .replace(/\s+/g, ' ')
-          .replace(/\n/g, ' ')
-          .trim();
-
-        // Ensure sentence completion
-        if (!/[.!?।]$/.test(cleaned)) {
-          return cleaned + '।';
-        }
-
-        return cleaned;
-      }
-
-      const safeText = prepareTextForVideo(responseText);
-
-      const gooeyResponseResult = await generateAvatarVideo({
+      gooeyResponseResult = await generateAvatarVideo({
         text: safeText,
         language: currentSettings.language,
         avatarUrl: currentSettings.avatarMediaUrl,
         gender: currentSettings.avatarVoiceGender
       });
 
-      setGooeyResponse(gooeyResponseResult); // Store the response
+      console.log('🎥 Gooey response:', {
+        success: gooeyResponseResult?.success,
+        hasVideoUrl: !!gooeyResponseResult?.videoUrl,
+        videoUrlsCount: gooeyResponseResult?.videoUrls?.length || 0,
+        error: gooeyResponseResult?.error
+      });
 
-      if (currentConversationRef.current !== targetConversationId) {
-        return;
-      }
-setAttachments([]);
-setAttachmentContext('');
+      setGooeyResponse(gooeyResponseResult);
 
-      setTranscriptMessages((prev) => [...prev,
-        { conversationId: targetConversationId, sender: 'user', text: userMessage, createdAt: new Date() },
-        { conversationId: targetConversationId, sender: 'ai', text: responseText, createdAt: new Date() }
-      ]);
-
-      if (gooeyResponseResult.success) {
+      if (gooeyResponseResult?.success) {
+        // Handle both single URL and array of URLs
         if (gooeyResponseResult.videoUrls && gooeyResponseResult.videoUrls.length > 0) {
-          // Multiple video chunks - pass them to VideoPlayer
-          setVideoState('speaking');
-          // VideoPlayer will handle playing them sequentially
+          videoUrlsToSave = gooeyResponseResult.videoUrls;
+          console.log('📹 Multiple video URLs:', videoUrlsToSave.length);
         } else if (gooeyResponseResult.videoUrl) {
-          // Single video (backward compatibility)
-          setCurrentVideoUrl(gooeyResponseResult.videoUrl);
-          setVideoState('speaking');
-        } else {
-          // No video URL - fallback to TTS
-          setVideoState('speaking');
-          await speakText(
-            responseText,
-            currentSettings.tone,
-            undefined,
-            () => {
-              if (currentConversationRef.current === targetConversationId) {
-                setVideoState('idle');
-                setCurrentCaption('');
-                setCurrentVideoUrl(null);
-                setGooeyResponse(null);
-              }
-            }
-          );
+          videoUrlsToSave = [gooeyResponseResult.videoUrl];
+          console.log('📹 Single video URL');
         }
-      } else {
-        // Gooey failed - fallback to TTS
-        setVideoState('speaking');
-        await speakText(
-          responseText,
-          currentSettings.tone,
-          undefined,
-          () => {
-            if (currentConversationRef.current === targetConversationId) {
-              setVideoState('idle');
-              setCurrentCaption('');
-              setCurrentVideoUrl(null);
-              setGooeyResponse(null);
-            }
-          }
-        );
+        
+        if (videoUrlsToSave && videoUrlsToSave.length > 0) {
+          console.log('▶️ Setting video state to speaking');
+          setVideoState('speaking');
+        }
       }
-
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setVideoState('idle');
-      setCurrentCaption('');
-      setCurrentVideoUrl(null);
-      setGooeyResponse(null);
+    } catch (videoError) {
+      console.error('❌ Video generation failed:', videoError);
+      // Continue without video - will use TTS fallback
     }
-  }, [videoState, settings]);
+
+    // Save AI message WITH video URLs as array
+    console.log('💾 Saving AI message to Firestore with video URLs:', {
+      videoUrlsCount: videoUrlsToSave?.length || 0
+    });
+    
+    await addMessage({
+      conversationId: targetConversationId,
+      sender: 'ai',
+      text: responseText,
+      videoUrls: videoUrlsToSave, // Array or null
+      createdAt: new Date()
+    });
+
+    if (currentConversationRef.current !== targetConversationId) {
+      console.log('⚠️ Conversation changed before completion');
+      return;
+    }
+
+    setCurrentCaption(responseText);
+    setAttachments([]);
+    setAttachmentContext('');
+
+    // Update transcript messages with video URLs
+    setTranscriptMessages((prev) => [...prev,
+      { 
+        conversationId: targetConversationId, 
+        sender: 'user', 
+        text: userMessage, 
+        videoUrls: null,
+        createdAt: new Date() 
+      },
+      { 
+        conversationId: targetConversationId, 
+        sender: 'ai', 
+        text: responseText, 
+        videoUrls: videoUrlsToSave,
+        createdAt: new Date() 
+      }
+    ]);
+
+    // If no video was generated, use TTS
+    if (!videoUrlsToSave || videoUrlsToSave.length === 0) {
+      console.log('🔊 No video URLs, using TTS fallback');
+      setVideoState('speaking');
+      await speakText(
+        responseText,
+        currentSettings.tone,
+        undefined,
+        () => {
+          if (currentConversationRef.current === targetConversationId) {
+            console.log('🔇 TTS finished');
+            setVideoState('idle');
+            setCurrentCaption('');
+            setGooeyResponse(null);
+          }
+        }
+      );
+    } else {
+      console.log('✅ Video ready to play');
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to send message:', error);
+    setVideoState('idle');
+    setCurrentCaption('');
+    setGooeyResponse(null);
+  }
+}, [videoState, settings, attachments.length, attachmentContext]);
 
   async function handleSend() {
     await handleSendWithText(input);
@@ -519,27 +555,43 @@ function fileToBase64(file: File): Promise<string> {
 }
 
   function sanitizeSettings(settings: ConversationSettings): ConversationSettings {
-    const cleaned = { ...settings };
+  const cleaned = { ...settings };
 
-    Object.keys(cleaned).forEach((key) => {
-      if ((cleaned as any)[key] === undefined) {
-        delete (cleaned as any)[key];
-      }
-    });
-
-    return cleaned;
-  }
-
-  async function handleSettingsChange(newSettings: ConversationSettings) {
-    const sanitized = sanitizeSettings(newSettings);
-    setSettings(sanitized);
-
-    try {
-      await updateConversationSettings(conversationId, sanitized);
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+  // Remove undefined values
+  Object.keys(cleaned).forEach((key) => {
+    if ((cleaned as any)[key] === undefined) {
+      (cleaned as any)[key] = null;
     }
+  });
+
+  // Ensure all required fields have defaults
+  return {
+    avatarId: cleaned.avatarId || 'default',
+    avatarMediaUrl: cleaned.avatarMediaUrl || '',
+    avatarPreviewImageUrl: cleaned.avatarPreviewImageUrl || '',
+    avatarVoiceGender: cleaned.avatarVoiceGender || 'female',
+    description: cleaned.description || 'A helpful AI assistant',
+    personality: cleaned.personality || 'You are a friendly and helpful AI assistant.',
+    tone: cleaned.tone || 'friendly',
+    responseLength: cleaned.responseLength || 'Normal',
+    language: cleaned.language || 'en',
+    selectedGeminiModel: cleaned.selectedGeminiModel || 'gemini-1.5-flash'
+  };
+}
+
+ async function handleSettingsChange(newSettings: ConversationSettings) {
+  const sanitized = sanitizeSettings(newSettings);
+  setSettings(sanitized);
+  
+  console.log('Saving settings:', sanitized); // Debug log
+
+  try {
+    await updateConversationSettings(conversationId, sanitized);
+    console.log('Settings saved successfully');
+  } catch (error) {
+    console.error('Failed to save settings:', error);
   }
+}
 
   const isBusy = videoState === 'thinking' || videoState === 'speaking';
 
@@ -566,14 +618,15 @@ function fileToBase64(file: File): Promise<string> {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-shrink-0 p-6 pb-4">
           <div className="max-w-2xl mx-auto">
-            <VideoPlayer
-              state={videoState}
-              avatarImageUrl={settings.avatarPreviewImageUrl}
-              speakingVideoUrl={currentVideoUrl} // For backward compatibility
-              speakingVideoUrls={gooeyResponse?.videoUrls} // Pass array of video chunks
-              caption={currentCaption}
-              onVideoEnded={handleVideoEnded}
-            />
+      
+<VideoPlayer
+  state={videoState}
+  avatarImageUrl={settings.avatarPreviewImageUrl}
+  speakingVideoUrls={gooeyResponse?.videoUrls || 
+    (gooeyResponse?.videoUrl ? [gooeyResponse.videoUrl] : null)}
+  caption={currentCaption}
+  onVideoEnded={handleVideoEnded}
+/>
           </div>
         </div>
 
