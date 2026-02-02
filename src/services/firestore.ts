@@ -95,13 +95,6 @@ export function subscribeToConversation(
   });
 }
 
-export async function updateConversationSettings(
-  conversationId: string,
-  settings: ConversationSettings
-): Promise<void> {
-  const docRef = doc(db, 'conversations', conversationId);
-  await updateDoc(docRef, { settings });
-}
 
 export async function updateConversationTitle(conversationId: string, newTitle: string): Promise<void> {
   const docRef = doc(db, 'conversations', conversationId);
@@ -119,6 +112,7 @@ export async function deleteConversation(conversationId: string): Promise<void> 
   await deleteDoc(doc(db, 'conversations', conversationId));
 }
 
+// Update addMessage function
 export async function addMessage(message: Omit<Message, 'id'>): Promise<string> {
   const messagesRef = collection(db, 'messages');
 
@@ -149,6 +143,7 @@ export async function addMessage(message: Omit<Message, 'id'>): Promise<string> 
   return docRef.id;
 }
 
+// Update subscribeToMessages function
 export function subscribeToMessages(
   conversationId: string,
   callback: (messages: Message[]) => void
@@ -311,4 +306,62 @@ export function subscribeToCompany(
       settings: data.settings || DEFAULT_CONVERSATION_SETTINGS
     });
   });
+}
+
+// Update updateConversationSettings function with better defaults
+export async function updateConversationSettings(
+  conversationId: string,
+  settings: ConversationSettings
+): Promise<void> {
+  const docRef = doc(db, 'conversations', conversationId);
+  
+  console.log('⚙️ Saving settings to Firestore:', {
+    conversationId,
+    settings: {
+      avatarId: settings.avatarId,
+      personality: settings.personality?.substring(0, 50) + '...',
+      videoUrl: settings.avatarMediaUrl?.substring(0, 30) + '...'
+    }
+  });
+  
+  // Ensure all required fields have values
+  const sanitizedSettings: ConversationSettings = {
+    avatarId: settings.avatarId || 'default',
+    avatarMediaUrl: settings.avatarMediaUrl || '',
+    avatarPreviewImageUrl: settings.avatarPreviewImageUrl || '',
+    avatarVoiceGender: settings.avatarVoiceGender || 'female',
+    description: settings.description || 'A helpful AI assistant',
+    personality: settings.personality || DEFAULT_CONVERSATION_SETTINGS.personality,
+    tone: settings.tone || 'friendly',
+    responseLength: settings.responseLength || 'Normal',
+    language: settings.language || 'en',
+    selectedGeminiModel: settings.selectedGeminiModel || 'gemini-1.5-flash'
+  };
+  
+  await updateDoc(docRef, { 
+    settings: sanitizedSettings
+  });
+  
+  console.log('✅ Settings saved successfully');
+}
+
+// Update createConversation to use proper default settings
+export async function createConversation(userId: string, title: string): Promise<string> {
+  const conversationsRef = collection(db, 'conversations');
+  
+  console.log('🆕 Creating conversation:', { userId, title });
+  
+  const docRef = await addDoc(conversationsRef, {
+    userId,
+    title,
+    createdAt: Timestamp.now(),
+    settings: {
+      ...DEFAULT_CONVERSATION_SETTINGS,
+      // Ensure personality is set
+      personality: DEFAULT_CONVERSATION_SETTINGS.personality
+    }
+  });
+  
+  console.log('✅ Conversation created with ID:', docRef.id);
+  return docRef.id;
 }

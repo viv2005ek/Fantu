@@ -11,8 +11,8 @@ export interface GooeyVideoRequest {
 
 export interface GooeyVideoResponse {
   success: boolean;
-  videoUrl?: string;
-  videoUrls?: string[];
+  videoUrl?: string; // For backward compatibility
+  videoUrls?: string[]; // Array of video chunks
   totalChunks?: number;
   error?: string;
   fallback?: boolean;
