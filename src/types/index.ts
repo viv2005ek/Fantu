@@ -70,7 +70,7 @@ export interface VisionContext {
 // MESSAGE
 // ==========================
 export interface Message {
-  id: string;
+  id?: string;
   conversationId: string;
   sender: 'user' | 'ai';
   text: string;

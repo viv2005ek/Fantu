@@ -5,11 +5,6 @@ import {
   Message,
   ConversationSettings,
   DEFAULT_CONVERSATION_SETTINGS
-
-import { 
-  Message, 
-  ConversationSettings, 
-  DEFAULT_CONVERSATION_SETTINGS 
 } from '../types';
 import { subscribeToMessages, addMessage, subscribeToConversation, updateConversationSettings } from '../services/firestore';
 import { generateAIResponse } from '../services/mockAI';
@@ -195,10 +190,10 @@ export default function ChatView({ conversationId }: ChatViewProps) {
   const handleSendWithText = useCallback(async (text: string) => {
     if (!text.trim() || videoState === 'thinking' || videoState === 'speaking') return;
 
-  const userMessage = text.trim();
-  const targetConversationId = currentConversationRef.current;
-  const currentSettings = settings;
-  const conversationHistory = messagesRef.current;
+    const userMessage = text.trim();
+    const targetConversationId = currentConversationRef.current;
+    const currentSettings = settings;
+    const conversationHistory = messagesRef.current;
 
     setInput('');
     setVideoState('thinking');
@@ -225,7 +220,9 @@ export default function ChatView({ conversationId }: ChatViewProps) {
         conversationHistory
       );
 
-    console.log('🤖 AI Response generated:', responseText.substring(0, 100) + '...');
+      if (currentConversationRef.current !== targetConversationId) {
+        return;
+      }
 
       setCurrentCaption(responseText);
 
@@ -239,16 +236,10 @@ export default function ChatView({ conversationId }: ChatViewProps) {
           return cleaned + '।';
         }
 
-      if (!/[.!?।]$/.test(cleaned)) {
-        return cleaned + '।';
+        return cleaned;
       }
 
-      return cleaned;
-    }
-
-    const safeText = prepareTextForVideo(responseText);
-    let gooeyResponseResult: GooeyVideoResponse | null = null;
-    let videoUrlsToSave: string[] | null = null;
+      const safeText = prepareTextForVideo(responseText);
 
       // Generate avatar video
       const gooeyResponseResult = await generateAvatarVideo({
@@ -300,6 +291,19 @@ export default function ChatView({ conversationId }: ChatViewProps) {
         } else {
           // Fallback to TTS if no video
           setVideoState('speaking');
+          await speakText(
+            responseText,
+            currentSettings.tone,
+            undefined,
+            () => {
+              if (currentConversationRef.current === targetConversationId) {
+                setVideoState('idle');
+                setCurrentCaption('');
+                setCurrentVideoUrl(null);
+                setGooeyResponse(null);
+              }
+            }
+          );
         }
       } else {
         // If Gooey failed, fallback to TTS
@@ -318,27 +322,13 @@ export default function ChatView({ conversationId }: ChatViewProps) {
           }
         );
       }
-    } catch (videoError) {
-      console.error('❌ Video generation failed:', videoError);
-      // Continue without video - will use TTS fallback
-    }
 
-    // Save AI message WITH video URLs as array
-    console.log('💾 Saving AI message to Firestore with video URLs:', {
-      videoUrlsCount: videoUrlsToSave?.length || 0
-    });
-    
-    await addMessage({
-      conversationId: targetConversationId,
-      sender: 'ai',
-      text: responseText,
-      videoUrls: videoUrlsToSave, // Array or null
-      createdAt: new Date()
-    });
-
-    if (currentConversationRef.current !== targetConversationId) {
-      console.log('⚠️ Conversation changed before completion');
-      return;
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setVideoState('idle');
+      setCurrentCaption('');
+      setCurrentVideoUrl(null);
+      setGooeyResponse(null);
     }
   }, [videoState, settings, attachmentContext]);
 
@@ -499,19 +489,16 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     return cleaned;
   }
 
- async function handleSettingsChange(newSettings: ConversationSettings) {
-  const sanitized = sanitizeSettings(newSettings);
-  setSettings(sanitized);
-  
-  console.log('Saving settings:', sanitized); // Debug log
+  async function handleSettingsChange(newSettings: ConversationSettings) {
+    const sanitized = sanitizeSettings(newSettings);
+    setSettings(sanitized);
 
-  try {
-    await updateConversationSettings(conversationId, sanitized);
-    console.log('Settings saved successfully');
-  } catch (error) {
-    console.error('Failed to save settings:', error);
+    try {
+      await updateConversationSettings(conversationId, sanitized);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
   }
-}
 
   function handlePlayMessage(videoUrl: string | undefined, videoUrls: string[] | undefined, transcript: string) {
     setCurrentCaption(transcript);

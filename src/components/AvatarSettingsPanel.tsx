@@ -38,8 +38,7 @@ function handleAvatarSelect(avatarId: string) {
     avatarPreviewImageUrl: avatar.previewImageUrl,
     avatarVoiceGender: avatar.defaultGender,
     tone: avatar.defaultTone,
-    // Don't overwrite personality if user already set it
-    personality: settings.personality || avatar.defaultPersonality,
+    personality: avatar.defaultPersonality,
     description: avatar.defaultDescription ?? settings.description,
     language: avatar.language ?? settings.language
   });
