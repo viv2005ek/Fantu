@@ -1,191 +1,265 @@
 #ThreadAi-RealTimeAiVideoCall-Rag-gooey-Genai-CV
 
 # Thread.ai  
-### Real-Time Multimodal AI Video Interaction Platform
+### Real-Time Multimodal AI Chat with RAG, Vision & AI Video Avatar
 
-Thread.ai is a real-time AI-powered video calling platform that enables multimodal interaction through voice, video, and document-grounded conversational intelligence (RAG). It is designed to explore the architectural and latency challenges involved in building live AI systems inside browser-based environments.
+Thread.ai is a real-time multimodal AI interaction platform built with React + TypeScript.  
+It combines conversational AI, document-grounded responses (RAG), computer vision, OCR, and AI-powered lip-synced avatar video generation.
 
-This project focuses on real-time inference streaming, multi-model orchestration, persona customization, and performance-aware AI pipelines.
-
----
-
-## 🚀 Overview
-
-Traditional AI applications are text-based and asynchronous.  
-Thread.ai extends this into real-time video interaction.
-
-Core capabilities include:
-
-- 🎥 Live AI video calls  
-- 🎙️ Voice-based interaction  
-- 📄 Retrieval-Augmented Generation (RAG)  
-- 🧠 AI persona customization  
-- 👁️ Experimental visual understanding integration  
-- ⚡ Latency-optimized multimodal orchestration  
-
-The goal is not just to generate responses — but to do so with minimal delay while maintaining realism and contextual grounding.
+The system integrates Firebase authentication, Pinecone vector search, PDF parsing, TensorFlow-based object detection, and a Gooey.ai-powered TTS + lipsync pipeline.
 
 ---
 
-## 🏗️ Architecture
+## 🚀 Core Capabilities
 
-Thread.ai is structured into three main layers:
-
-### 1. Communication Layer
-- WebRTC for real-time audio/video streaming
-- Browser-native MediaStream handling
-- Bi-directional streaming pipelines
-
-### 2. AI Orchestration Layer
-- Multi-model routing
-- Streaming LLM responses
-- Persona-based response tuning
-- Token and latency control
-- Response chunk streaming
-
-### 3. Context & Retrieval Layer
-- Document ingestion
-- Embedding generation
-- Vector database indexing
-- Context injection during inference
-- Session-based memory handling
+- 💬 Conversational AI Interface
+- 📄 Document-Grounded Responses (RAG via Pinecone)
+- 🧠 PDF Ingestion & Embedding Pipeline
+- 👁️ Object Detection (TensorFlow COCO-SSD)
+- 🔎 OCR (Tesseract.js)
+- 🎥 AI Video Avatar with Lip-Sync (Gooey.ai)
+- 🔐 Firebase Authentication
+- 🗂 Firestore-based Chat Storage
+- 🎨 Tailwind + Framer Motion UI
 
 ---
 
-## 🔥 Key Features
+## 🏗 Architecture Overview
 
-### Real-Time AI Video Interaction
-AI responds live during video sessions using streaming-based inference.
+### Frontend (Vite + React + TypeScript)
+- Chat interface
+- Avatar rendering
+- Transcript view
+- Sidebar + multi-session layout
+- Authentication flow
+- Dashboard & Landing pages
 
-### Retrieval-Augmented Generation (RAG)
-Documents are embedded and indexed to allow contextual, grounded responses during live sessions.
+### AI & Data Layer
+- Pinecone Vector Database for embeddings
+- PDF parsing using `pdfjs-dist`
+- OCR using `tesseract.js`
+- Object detection using `@tensorflow-models/coco-ssd`
+- Vision pipeline via `vision.ts`
+- Text-to-Speech pipeline via `tts.ts`
 
-### Persona Customization
-Users can adjust AI tone, behavior, and domain specialization dynamically.
+### Backend (Gooey Lipsync Server)
+Located in `/gooey`
 
-### Multimodal Support
-Supports:
-- Text input
-- Voice interaction
-- Video communication
-- Experimental visual analysis
-
-### Latency Optimization
-Special focus on:
-- Reducing end-to-end inference delay
-- Optimizing model switching overhead
-- Managing browser-side compute limitations
-- Balancing cost vs responsiveness
-
----
-
-## 🧠 Engineering Challenges Addressed
-
-Thread.ai was built to deeply explore:
-
-- End-to-end latency in live AI pipelines  
-- Multi-model orchestration complexity  
-- Token streaming performance  
-- Context-window management  
-- Realism vs responsiveness trade-offs  
-- Cost-performance balancing in production scenarios  
+- Express server
+- Proxy to Gooey.ai LipsyncTTS API
+- Secure API key handling
+- Video generation + face sync
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠 Tech Stack
 
 ### Frontend
-- React.js  
-- WebRTC  
-- Web Audio API  
-- MediaStream APIs  
+- React 18
+- TypeScript
+- Vite
+- TailwindCSS
+- Framer Motion
+- Lucide Icons
+- React Router v7
+
+### AI / Data
+- Pinecone
+- Supabase (client present)
+- TensorFlow.js
+- COCO-SSD Model
+- Tesseract.js (OCR)
+- pdfjs-dist
+- Firebase (Auth + Firestore)
 
 ### Backend
-- Node.js  
-- Express.js  
-- WebSockets / Streaming APIs  
-
-### AI & Data
-- LLM APIs  
-- Retrieval-Augmented Generation (RAG)  
-- Embedding Models  
-- Vector Database  
-- Experimental Computer Vision APIs  
+- Node.js
+- Express
+- Gooey.ai LipsyncTTS API
 
 ---
 
-## 📊 Performance Focus
+## 📂 Project Structure
 
-Thread.ai prioritizes:
+```
+/src
+  /components
+  /contexts
+  /pages
+  /services
+  /lib
+  /types
 
-- Streaming token responses  
-- Modular AI model routing  
-- Minimal inference delay  
-- Efficient context management  
-- Browser-compatible AI pipelines  
+/gooey
+  server.js
+```
 
 ---
 
 ## 📦 Installation
 
+### 1️⃣ Clone Repository
+
 ```bash
-# Clone repository
 git clone https://github.com/yourusername/thread-ai.git
-
-# Navigate into project
 cd thread-ai
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
 ```
 
+---
+
+### 2️⃣ Install Frontend Dependencies
+
+```bash
+npm install
+```
+
+---
+
+### 3️⃣ Install Gooey Server Dependencies
+
+```bash
+cd gooey
+npm install
+cd ..
+```
+
+---
+
+## ▶ Running the Project
+
+### Start Frontend
+
+```bash
+npm run dev
+```
+
+Runs on:
+```
+http://localhost:5173
+```
+
+---
+
+### Start Gooey Lipsync Server
+
+```bash
+cd gooey
+node server.js
+```
+
+Runs on:
+```
+http://localhost:3001
+```
+
+---
 
 ## 🔐 Environment Variables
 
-
-Create a `.env` file in the root directory:
-
+Create `.env` in the root directory:
 
 ```env
-LLM_API_KEY=your_api_key
-VECTOR_DB_URL=your_vector_db_url
-BACKEND_PORT=5000
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+
+VITE_PINECONE_API_KEY=
+VITE_PINECONE_INDEX_NAME=
+
+
 ```
-##🎯 Use Cases
 
-Real-time AI virtual assistants
+---
 
-AI-powered interview simulation systems
+Create `.env` inside `/gooey`:
 
-Document-grounded advisory platforms
+```env
+GOOEY_API_KEY=your_gooey_api_key
+PORT=3001
+```
 
-Interactive AI tutors
+---
 
-Experimental multimodal AI research
+## 🧠 Features Explained
 
-##🏆 Recognition
+### 📄 Retrieval-Augmented Generation (RAG)
+- PDF ingestion
+- Embedding storage in Pinecone
+- Context injection into AI responses
 
-🥇 1st Position – AI Track (National Project Expo)
-Recognized for system design, multimodal orchestration, and real-time AI implementation.
+### 👁 Vision + OCR
+- Object detection via COCO-SSD
+- OCR text extraction via Tesseract
+- Enables multimodal contextual reasoning
 
-📽️ Demo
+### 🎥 AI Video Avatar
+- Text → TTS
+- TTS → Gooey Lipsync
+- Generates lip-synced AI face video
 
-Short Demo Video:
+---
+
+## 🎯 Use Cases
+
+- Real-time AI virtual assistant
+- Document-grounded advisory system
+- AI tutoring platform
+- Interactive AI persona system
+- Multimodal AI experimentation
+- AI + Computer Vision integration demos
+
+---
+
+## 🏆 Recognition
+
+🥇 1st Position – AI Track (National Project Expo)  
+Recognized for multimodal orchestration, RAG implementation, and AI video integration.
+
+---
+
+## 📽 Demo
+
+Short Demo Video:  
 https://youtu.be/ci9qdkgSVss
 
+---
 
-📄 License
+## 🚧 Future Improvements
 
-This project is built for educational, research, and experimental purposes.
+- Scalable inference pipeline
+- Real-time streaming LLM responses
+- Better latency optimization
+- Edge deployment for AI modules
+- Production-ready containerization
 
-👨‍💻 Author
+---
 
-Vivek Kumar Garg
-AI Systems Builder | Full-Stack Developer
+## 🤝 Contributing
+
+Pull requests are welcome.
+
+For major changes:
+- Open an issue first
+- Discuss architectural impact
+- Maintain modular service structure
+
+---
+
+## 📄 License
+
+Educational / Research Use Only.
+
+---
+
+## 👨‍💻 Author
+
+Vivek Kumar Garg  
+AI Systems Builder | Full-Stack Developer  
 Portfolio: https://vivekfolio-six.vercel.app/
 
-Thread.ai is an exploration into real-time multimodal AI — where latency, orchestration, and system architecture are treated as first-class engineering problems.
+---
+
+> Thread.ai explores how conversational AI, vector search, vision models, and AI-generated video can be orchestrated into a single real-time multimodal system.
